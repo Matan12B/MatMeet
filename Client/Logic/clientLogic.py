@@ -1,7 +1,6 @@
 import queue
 import threading
 import time
-from Client.Comms.ClientComm import ClientComm
 from Client.Protocol import clientProtocol
 from Client.Logic.Host import Host
 from Client.Logic.callLogic import CallLogic
