@@ -53,8 +53,7 @@ class VideoComm:
             if not ret:
                 return
             frame_bytes = buffer.tobytes()
-            size_bytes = len(frame_bytes)
-            print(f"Frame size: {size_bytes} bytes")
+
             # Encrypt
             encrypted = self.AES.encrypt_file(frame_bytes)
 
@@ -94,24 +93,18 @@ class VideoComm:
 # ---------------- Example Usage -----------------
 def main():
     key = "testkey123"
-    port = 5000
 
-    # Get remote IP from user
-    remote_ip = input("Enter remote machine IP (or press Enter to skip): ").strip()
+    # Create server and client (for local testing)
+    server = VideoComm(5000, key, users=[])
+    client = VideoComm(5001, key, users=[])
 
-    # Create video comm
-    video_comm = VideoComm(port, key, users=[])
-
-    # Add remote user if provided
-    if remote_ip:
-        video_comm.add_user(remote_ip, port)
-        print(f"Connected to {remote_ip}:{port}")
-    else:
-        print("No remote IP provided. Waiting for incoming connections...")
+    # Connect them
+    server.add_user("127.0.0.1", 5001)
+    client.add_user("127.0.0.1", 5000)
 
     print("Video communication started. Press 'q' to quit.")
 
-    # Open local camera
+    # Open local camera for server
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
@@ -120,13 +113,13 @@ def main():
         while True:
             # --- Capture and send frame ---
             ret, frame = cap.read()
-            if ret:
-                video_comm.send_frame(frame)
-                cv2.imshow("My Camera", frame)
+            if not ret:
+                continue
+            server.send_frame(frame)
 
             # --- Display received frames ---
-            while not video_comm.frameQ.empty():
-                recv_frame, addr = video_comm.frameQ.get()
+            while not server.frameQ.empty():
+                recv_frame, addr = server.frameQ.get()
                 cv2.imshow(f"Received from {addr}", recv_frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -140,7 +133,8 @@ def main():
     finally:
         cap.release()
         cv2.destroyAllWindows()
-        video_comm.close()
+        server.close()
+        client.close()
 
 
 if __name__ == "__main__":
