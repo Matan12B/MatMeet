@@ -85,7 +85,7 @@ def main():
 
     # Connect them
     server.add_user("127.0.0.1", 5001)
-    client.add_user("127.0.0.1", 5000)
+    client.add_user("10.0.0.26", 5000)
 
     print("Users connected. Press 'q' to quit.")
 
