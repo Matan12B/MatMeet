@@ -125,16 +125,16 @@ class AudioClient:
                     self.open = False
         return flag
 
-
 class AudioServer:
-    def __init__(self, port, audioQ):
+    def __init__(self, port, audioQ, open_clients):
         self.server_socket = socket.socket()
         self.port = port
         self.audioQ = audioQ
         # ip: [soc, AES]
-        self.open_clients= {}
+        self.open_clients= open_clients
         # soc: ip
         self.open_clients_soc_ip = {}
+
         self.server_socket.bind(('0.0.0.0', self.port))
         self.server_socket.listen(4)
         self.mic = Microphone(50)
@@ -284,46 +284,48 @@ if __name__ == "__main__":
     #     sys.exit(1)
 
     # mode = sys.argv[1].lower()
-    mode = "client"
+    mode = "server"
 
     if mode == "server":
         print("Starting audio server on port 1234...")
         audioQ = queue.Queue()
         server = AudioServer(1234, audioQ)
 
-        # 🔊 NEW: create local speaker output
-        from Client.Devices.AudioOutputDevice import AudioOutput
+        # Add microphone for server
+        mic = Microphone(volume=70, rate=16000, channels=1, chunk=1024)
+        speaker = AudioOutput(rate=16000, channels=1)
 
-        speaker = AudioOutput(rate=16000, channels=1)  # match mic settings
+        mic.start()
+        mic.unmute()
 
-        # Wait for audio chunks, play and broadcast
-        print("Server running. Waiting for clients and audio chunks...")
+        print("Server running. Sending and receiving audio...")
         try:
             while True:
+                # Capture and send server's own audio
+                audio_chunk = mic.record()
+                timestamp = int(time.time() * 1000)
+                server.broadcast_audio(audio_chunk, "server", timestamp)
+                # Play server's own audio locally
+                speaker.play_bytes(audio_chunk)
+
+                # Receive and play client audio
                 if not audioQ.empty():
-                    ip, audio_chunk = audioQ.get()
-                    print(f"Received audio from {ip}: {len(audio_chunk)} bytes")
-
-                    # 🔊 Play the audio locally on server
-                    speaker.play_bytes(audio_chunk)
-
-                    # Broadcast to other clients with timestamp
-                    timestamp = int(time.time() * 1000)
-                    server.broadcast_audio(audio_chunk, ip, timestamp)
-                    print(f"Broadcasted audio to other clients (timestamp: {timestamp})")
+                    ip, received_chunk = audioQ.get()
+                    print(f"Received audio from {ip}: {len(received_chunk)} bytes")
+                    speaker.play_bytes(received_chunk)
 
                 time.sleep(0.01)
-
         except KeyboardInterrupt:
             print("\nServer shutting down...")
         finally:
+            mic.close()
             speaker.stop()
+
 
     elif mode == "client":
         print("Starting audio client, connecting to 127.0.0.1:1234...")
         recvQ = queue.Queue()
         client = AudioClient("10.0.0.26", 1234, recvQ)
-        # 🔊 NEW: import your audio classes
 
         mic = Microphone(volume=70, rate=16000, channels=1, chunk=1024)
         speaker = AudioOutput(rate=16000, channels=1)
@@ -337,10 +339,8 @@ if __name__ == "__main__":
         mic.unmute()
         try:
             while True:
-                # 🎙️ RECORD + SEND
                 audio_chunk = mic.record()
                 client.send_audio(audio_chunk)
-                # 🔊 RECEIVE + PLAy
                 while not recvQ.empty():
                     received_audio = recvQ.get()
                     speaker.play_bytes(received_audio)

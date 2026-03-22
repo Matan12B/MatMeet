@@ -6,7 +6,7 @@ from Server.ServerComm import ServerComm
 from Server import serverProtocol
 from random import choice
 from string import ascii_uppercase
-
+import random
 
 class Server:
     def __init__(self, port=1231):
@@ -37,12 +37,10 @@ class Server:
         """
         print(f"Server starting on port {self.port}...")
         time.sleep(0.2)
-
         threading.Thread(
             target=self.handle_msgs,
             daemon=True
         ).start()
-
         print(f"Server listening on port {self.port}")
 
     def log_in(self, ip, data):
@@ -81,7 +79,7 @@ class Server:
         msg = serverProtocol.build_register_status(status)
         self.comm.send_msg(ip, msg)
 
-    def open_meeting(self, ip, data):
+    def open_meeting(self, ip, data=None):
         """
         Create a new meeting for the client
         :param ip: Client IP address
@@ -89,20 +87,18 @@ class Server:
         """
         meeting_id = self.generate_call_id()
         shared_key = self.generate_shared_key()
-
-        # Store meeting: [call_id] = [shared_key, [list of client IPs]]
-        self.meetings[meeting_id] = [shared_key, [ip]]
-
+        # Store meeting: [call_id] = [port, shared_key, [list of client IPs]]
+        meeting_port = self.generate_port()
+        self.meetings[meeting_id] = [meeting_port, shared_key, [ip]]
         # Update client's meeting ID
         if ip in self.open_clients:
             self.open_clients[ip][1] = meeting_id
-
         print(f"Meeting created: {meeting_id} by {ip}")
-
         # Send meeting code and role back to client
-        msg = serverProtocol.give_meeting_code(meeting_id)
+        msg = serverProtocol.build_give_meeting_code(meeting_id)
+        print("sending meeting code", meeting_id)
         self.comm.send_msg(ip, msg)
-        msg = serverProtocol.build_give_role("host")
+        msg = serverProtocol.build_give_role("host", meeting_port)
         self.comm.send_msg(ip, msg)
 
     def join_meeting(self, ip, data):
@@ -186,10 +182,14 @@ class Server:
         """
         while True:
             ip, msg = self.msgsQ.get()
-
+            print(f"Received message from {ip}: {msg}")
             try:
-                opcode, data = serverProtocol.unpack(msg)
-
+                unpacked = serverProtocol.unpack(msg)
+                if len(unpacked) < 2:
+                    opcode = unpacked[0]
+                    data = None
+                else:
+                    opcode, data = serverProtocol.unpack(msg)
                 if opcode in self.commands:
                     self.commands[opcode](ip, data)
                 else:
@@ -214,12 +214,18 @@ class Server:
         """
         return ''.join(choice(ascii_uppercase) for i in range(5))
 
+    @staticmethod
+    def generate_port():
+        """
+
+        """
+        return random.randint(5000, 65535)
 
 def main():
     """
     Create and start the server
     """
-    server = Server(port=1231)
+    server = Server(port=3018)
     server.start()
 
     # Keep main thread alive

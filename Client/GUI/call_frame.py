@@ -3,33 +3,15 @@ import cv2
 import numpy as np
 
 
-class FakeCamera:
-    """Temporary camera generator for testing UI"""
-
-    def __init__(self, name):
-        self.name = name
-
-    def get_frame(self):
-
-        frame = np.zeros((240,320,3), dtype=np.uint8)
-
-        cv2.putText(
-            frame,
-            self.name,
-            (50,120),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (0,255,0),
-            2
-        )
-
-        return frame
-
-
 class CallFrame(wx.Frame):
 
-    def __init__(self):
+    def __init__(self, call_logic):
         super().__init__(None, title="Meeting", size=(900,700))
+        self.call_logic = call_logic
+
+        # Start the call logic in background
+        import threading
+        threading.Thread(target=self.call_logic.start, daemon=True).start()
 
         panel = wx.Panel(self)
 
@@ -72,37 +54,91 @@ class CallFrame(wx.Frame):
         panel.SetSizer(main_sizer)
 
         # Events
-        self.leave_btn.Bind(wx.EVT_BUTTON,self.leave_call)
+        self.leave_btn.Bind(wx.EVT_BUTTON, self.leave_call)
+        self.mic_btn.Bind(wx.EVT_BUTTON, self.toggle_mic)
+        self.cam_btn.Bind(wx.EVT_BUTTON, self.toggle_camera)
 
-        # Fake cameras for testing
-        self.cameras = [
-            FakeCamera("Alice"),
-            FakeCamera("Bob"),
-            FakeCamera("Charlie"),
-            FakeCamera("You")
-        ]
+        # Track mute/camera state
+        self.is_muted = False
+        self.is_camera_off = False
+
+        # Store frames for display
+        self.client_frames = {}
 
         # Timer updates video
         self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER,self.update_frames)
+        self.Bind(wx.EVT_TIMER, self.update_frames)
         self.timer.Start(30)
 
 
-    def update_frames(self,event):
+    def update_frames(self, event):
+        # Get own camera frame
+        if hasattr(self.call_logic, 'camera') and self.call_logic.camera:
+            my_frame = self.call_logic.camera.get_frame()
+            if my_frame is not None:
+                self._display_frame(0, my_frame)
 
-        for i,cam in enumerate(self.cameras):
+        # Get frames from sync_buffer (other participants)
+        if hasattr(self.call_logic, 'sync_buffer'):
+            panel_idx = 1
+            for client_ip, timestamps in list(self.call_logic.sync_buffer.items()):
+                if panel_idx >= 4:  # Only 4 panels available
+                    break
 
-            frame = cam.get_frame()
+                # Get latest frame for this client
+                for timestamp in sorted(timestamps.keys(), reverse=True):
+                    data = timestamps[timestamp]
+                    if data.get("video") is not None:
+                        frame = data["video"]
+                        self._display_frame(panel_idx, frame)
+                        panel_idx += 1
+                        break
 
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    def _display_frame(self, panel_idx, frame):
+        """Helper to display a frame in a specific video panel"""
+        if frame is None or panel_idx >= len(self.video_panels):
+            return
 
-            h,w = rgb.shape[:2]
+        # Resize frame to fit panel
+        frame = cv2.resize(frame, (320, 240))
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w = rgb.shape[:2]
+        bitmap = wx.Bitmap.FromBuffer(w, h, rgb)
+        self.video_panels[panel_idx].SetBitmap(bitmap)
 
-            bitmap = wx.Bitmap.FromBuffer(w,h,rgb)
+    def toggle_mic(self, event):
+        """Toggle microphone mute/unmute"""
+        if hasattr(self.call_logic, 'mic'):
+            if self.is_muted:
+                self.call_logic.mic.unmute()
+                self.mic_btn.SetLabel("Mute")
+                self.is_muted = False
+            else:
+                self.call_logic.mic.mute()
+                self.mic_btn.SetLabel("Unmute")
+                self.is_muted = True
 
-            self.video_panels[i].SetBitmap(bitmap)
+    def toggle_camera(self, event):
+        """Toggle camera on/off"""
+        if hasattr(self.call_logic, 'camera'):
+            if self.is_camera_off:
+                self.call_logic.camera.start()
+                self.cam_btn.SetLabel("Camera Off")
+                self.is_camera_off = False
+            else:
+                self.call_logic.camera.stop()
+                self.cam_btn.SetLabel("Camera On")
+                self.is_camera_off = True
 
-
-    def leave_call(self,event):
+    def leave_call(self, event):
+        """Leave the call and cleanup"""
         self.timer.Stop()
+
+        # Stop devices
+        if hasattr(self.call_logic, 'camera'):
+            self.call_logic.camera.stop()
+        if hasattr(self.call_logic, 'mic'):
+            self.call_logic.mic.stop()
+            self.call_logic.mic.close()
+
         self.Close()

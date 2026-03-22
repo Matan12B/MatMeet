@@ -8,7 +8,7 @@ from Common.Cipher import AESCipher
 
 
 class VideoComm:
-    def __init__(self, port, key_string, users=None):
+    def __init__(self, port, key_string, users={}):
         """
         Video communication over UDP with AES encryption and JPEG compression.
         :param port: Local UDP port to bind
@@ -19,7 +19,7 @@ class VideoComm:
         self.udp_socket.bind(("0.0.0.0", port))
         self.AES = AESCipher(key_string)
         self.frameQ = queue.Queue()
-        self.users = users if users else []
+        self.users = users if users else {}
         self.running = True
         self.MAX_PACKET_SIZE = 65507  # max UDP datagram size
         threading.Thread(target=self._receive_frames, daemon=True).start()
@@ -48,8 +48,10 @@ class VideoComm:
         :param frame: NumPy array (BGR)
         """
         try:
+            # Resize frame to reduce size
+            frame = cv2.resize(frame, (320, 240))
             # Compress frame as JPEG
-            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 15])
             if not ret:
                 return
             frame_bytes = buffer.tobytes()
@@ -91,14 +93,13 @@ class VideoComm:
         self.udp_socket.close()
 
 
-# ---------------- Example Usage -----------------
 def main():
     key = "testkey123"
     port = 5000
 
     # Get remote IP from user
-    remote_ip = input("Enter remote machine IP (or press Enter to skip): ").strip()
-
+    # remote_ip = input("Enter remote machine IP (or press Enter to skip): ").strip()
+    remote_ip = "10.0.0.26"
     # Create video comm
     video_comm = VideoComm(port, key, users=[])
 
@@ -113,18 +114,17 @@ def main():
 
     # Open local camera
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 160)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 120)
 
     try:
         while True:
-            # --- Capture and send frame ---
             ret, frame = cap.read()
+
             if ret:
                 video_comm.send_frame(frame)
                 cv2.imshow("My Camera", frame)
 
-            # --- Display received frames ---
             while not video_comm.frameQ.empty():
                 recv_frame, addr = video_comm.frameQ.get()
                 cv2.imshow(f"Received from {addr}", recv_frame)

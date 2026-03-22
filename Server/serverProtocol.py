@@ -30,11 +30,11 @@ def build_audio_msg(audio_data):
     """
     return f"ha^#^{audio_data}"
 
-def build_give_role(role):
+def build_give_role(role,meeting_port):
     """
     give the client a role
     """
-    return f"ir^#^{role}"
+    return f"ir^#^{role}^#^{meeting_port}"
 
 def build_give_meeting_code(meeting_code):
     """

@@ -29,7 +29,6 @@ class Client:
             "ls": self.get_login_status,
             "ss": self.get_signup_status,
             "cj": self.client_joined
-
         }
 
     def start(self):
@@ -39,12 +38,6 @@ class Client:
         time.sleep(0.2)
         threading.Thread(
             target=self.handle_msgs,
-            daemon=True
-        ).start()
-
-        time.sleep(0.2)
-        threading.Thread(
-            target=self.gui,
             daemon=True
         ).start()
 
@@ -75,8 +68,7 @@ class Client:
 
         This method determines the role of the object (either 'host' or 'guest')
         and initializes it accordingly. If the role is invalid, it outputs an
-        appropriate message. After initialization, if a role is assigned, it
-        starts the corresponding functionality.
+        appropriate message. The GUI will call start() on the role when ready.
 
         Parameters:
         data: list
@@ -90,16 +82,14 @@ class Client:
             If the role specified in data[0] is invalid or unsupported.
         """
         role = data[0]
-        open_clients = data[1]
-        port = data[2]
+        port = int(data[1])
+        open_clients = {}
         if role == "host":
             self.role = Host(port, self.meeting_code, open_clients, self.comm)
         elif role == "guest":
             self.role = CallLogic(port, self.meeting_code, open_clients, self.comm)
         else:
             print("Invalid role")
-        if role is not None:
-            self.role.start()
 
     def handle_msgs(self):
         """
@@ -107,6 +97,7 @@ class Client:
         """
         while True:
             msg = self.msgsQ.get()
+            print(f"Received message: {msg}")
             opcode, data = clientProtocol.unpack(msg)
             if opcode in self.commands:
                 self.commands[opcode](data)
@@ -137,42 +128,12 @@ class Client:
         msg = clientProtocol.build_register(username, password)
         self.comm.send_msg(msg)
 
-    def gui(self):
+    def client_joined(self, data):
         """
-
+        Handle when a new client joins the call
         """
-        #todo gui
-
-        # this is temp
-        while True:
-            choice = input("Enter choice (1/2):\n  1: log in\n  2: sign up\n> ").strip()
-            self.username = input("Enter username: ")
-            self.password = input("Enter password: ")
-            if choice == "1":
-                self.log_in(self.username, self.password)
-                break
-            elif choice == "2":
-                self.sign_up(self.username, self.password)
-                break
-            else:
-                print("Invalid choice")
-        if self.active is not None:
-            while True:
-                choice = input("Enter choice (1/2):\n  1: Open meeting\n  2: Join meeting\n> ").strip()
-                if choice == "1":
-                    self.start_meeting()
-                    break
-                elif choice == "2":
-                    self.request_join_meeting()
-                    break
-                else:
-                    print("Invalid choice")
-
-        else:
-            print("Invalid login")
-
-
-
+        # TODO: implement client joined logic
+        pass
 
 def main():
     ip = input("Enter ip")

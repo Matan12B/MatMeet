@@ -2,7 +2,7 @@ import socket
 import threading
 import queue
 import select
-from Cyber.project2026.Common.Cipher import DiffiHelman, AESCipher
+from Common.Cipher import DiffiHelman, AESCipher
 
 class ServerComm:
     def __init__(self, port, recvQ):
@@ -60,12 +60,12 @@ class ServerComm:
         shared_key = None
         client_public_key = None
         try:
-            self.server_socket.send(str(diffie.public_key).zfill(5).encode())
-            client_public_key = int(self.server_socket.recv(5).decode())
+            client_soc.send(str(diffie.public_key).zfill(5).encode())
+            client_public_key = int(client_soc.recv(5).decode())
         except Exception as e:
             print(f"Error in sending/receiving public key: {e}")
         if client_public_key:
-            shared_key = diffie.create_shared_key
+            shared_key = diffie.create_shared_key(client_public_key)
 
         if shared_key:
             print(f"Shared key established with client {client_ip}: {shared_key}")

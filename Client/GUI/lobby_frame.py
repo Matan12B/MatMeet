@@ -1,5 +1,5 @@
 import wx
-from .call_frame import CallFrame
+from call_frame import CallFrame
 
 
 class LobbyFrame(wx.Frame):
