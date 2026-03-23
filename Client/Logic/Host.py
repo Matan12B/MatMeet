@@ -19,19 +19,18 @@ from MatMeet.Client.Comms.ClientServerComm import ClientServer
 # confusing workflow of starting meeting and comm with server
 
 class Host:
-    def __init__(self, port, meeting_code, open_clients, comm):
-        self.open_clients = open_clients
+    def __init__(self, port, meeting_key, comm):
+        self.open_clients = {} # from server
         self.microphone = None
         self.soc = socket.socket()
         self.msgQ = queue.Queue()
         self.display = VideoDisplay()
         self.host_comm = comm
         print("port", port)
-        self.host_server = ClientServer(port, self.msgQ, open_clients)
+        self.host_server = ClientServer(port, self.msgQ, self.open_clients)
         # todo add port to audio and video comm
-
-        self.audio_comm = AudioServer(port, self.msgQ, self.host_comm.open_clients)
-        self.video_comm = VideoComm(port, self.msgQ, self.host_comm.open_clients)
+        self.audio_comm = AudioServer(port, meeting_key, self.host_comm.open_clients)
+        self.video_comm = VideoComm(port, meeting_key, self.host_comm.open_clients)
         # for getting the current user ip
         hostname = socket.gethostname()
         self.ip = socket.gethostbyname(hostname)
@@ -63,20 +62,19 @@ class Host:
         # Start communication threads (assuming they have start() method)
         threading.Thread(
             target=self.handle_msgs,
-            args=(self.host_comm, self.msgQ, "CALL"),
             daemon=True
         ).start()
-        threading.Thread(target=self.playback_loop, daemon=True).start()
+        # threading.Thread(target=self.playback_loop, daemon=True).start()
         # TODO GUI
         # start meeting
         try:
             while True:
                 frame = self.camera.get_frame()
-                if frame:
+                if frame is not None:
                     self.send_video(self.ip, frame)
-                audio_chunk = self.mic.record()
-                if audio_chunk:
-                    self.send_audio(self.ip, audio_chunk)
+                # audio_chunk = self.mic.record()
+                # if audio_chunk:
+                #     self.send_audio(self.ip, audio_chunk)
 
                 # Small sleep prevents CPU overuse
                 time.sleep(0.01)
@@ -96,29 +94,29 @@ class Host:
         It will process the incoming messages, handle them accordingly.
         """
         while True:
-            msg = self.msgsQ.get()
+            msg = self.msgQ.get()
             opcode, data = clientProtocol.unpack(msg)
             if opcode in self.commands:
                 self.commands[opcode](data)
 
-    def playback_loop(self):
-        """
-        plays audio and video in sync from the buffer and than deletes them
-        """
-        while True:
-            for client in list(self.sync_buffer.keys()):
-                timestamps = list(self.sync_buffer[client].keys())
-                for timestamp in timestamps:
-                    data = self.sync_buffer[client][timestamp]
-                    if data["audio"] and data["video"]:
-                        frame = data["video"]
-                        audio = data["audio"]
-                        # display video
-                        self.display.show_frame(client, frame)
-                        # play audio
-                        self.AudioOutput.play(audio)
-                        del self.sync_buffer[client][timestamp]
-            time.sleep(0.01)
+    # def playback_loop(self):
+    #     """
+    #     plays audio and video in sync from the buffer and than deletes them
+    #     """
+    #     while True:
+    #         for client in list(self.sync_buffer.keys()):
+    #             timestamps = list(self.sync_buffer[client].keys())
+    #             for timestamp in timestamps:
+    #                 data = self.sync_buffer[client][timestamp]
+    #                 if data["audio"] and data["video"]:
+    #                     frame = data["video"]
+    #                     audio = data["audio"]
+    #                     # display video
+    #                     self.display.show_frame(client, frame)
+    #                     # play audio
+    #                     self.AudioOutput.play(audio)
+    #                     del self.sync_buffer[client][timestamp]
+    #         time.sleep(0.01)
 
     def send_video(self, username, img):
         """
@@ -127,18 +125,17 @@ class Host:
         :param username: The username of the target client.
         :param img: The image (video frame) to send to the user.
         """
-        success, encoded = cv2.imencode(".jpg", img)
-        if success:
-            self.video_comm.send_frame(encoded.tobytes())
+        if img:
+            self.video_comm.send_frame(img)
 
-    def send_audio(self, username, audio):
+    def send_audio(self, username, audio, timestamp):
         """
         Send audio to a specific user.
 
         :param username: The username of the target client.
         :param audio: The audio data to send to the user.
         """
-        self.audio_comm.broadcast_audio(audio, "")
+        self.audio_comm.broadcast_audio(audio, "", timestamp)
 
     def handle_audio(self, client_ip, username, timestamp, audio):
         """

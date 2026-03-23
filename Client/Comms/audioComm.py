@@ -12,11 +12,11 @@ import select
 
 # client
 class AudioClient:
-    def __init__(self, server_ip, port, recvQ):
+    def __init__(self, server_ip, port):
         self.my_socket = socket.socket()
         self.server_ip = server_ip
-        self.port = port
-        self.recvQ = recvQ
+        self.port = 3000 # todo from settings
+        self.recvQ = queue.Queue()
         self.cipher = None
         self.open = False
         self.file_counter = 0
@@ -108,16 +108,16 @@ class AudioClient:
     def send_audio(self, audio_chunk):
         """
         send message to server
-        :param msg:
+        :param audio_chunk:
         :return:
         """
         flag = False
         if self.cipher and self.open:
-            audio_chunk = self.cipher.encrypt_file(audio_chunk)
-            if len(audio_chunk) > 0:
+            audio_chunk_encrypted = self.cipher.encrypt_file(audio_chunk)
+            if len(audio_chunk_encrypted) > 0:
                 try:
-                    self.my_socket.send(str(len(audio_chunk)).zfill(8).encode())
-                    self.my_socket.send(audio_chunk)
+                    self.my_socket.send(str(len(audio_chunk_encrypted)).zfill(8).encode())
+                    self.my_socket.send(audio_chunk_encrypted)
                     flag = True
                 except Exception as e:
                     print(f"error in sending message - {e}")
@@ -128,7 +128,7 @@ class AudioClient:
 class AudioServer:
     def __init__(self, port, audioQ, open_clients):
         self.server_socket = socket.socket()
-        self.port = port
+        self.port = 3000 # this will be from the settings
         self.audioQ = audioQ
         # ip: [soc, AES]
         self.open_clients= open_clients
@@ -213,7 +213,6 @@ class AudioServer:
                 print(f"Client {client_ip} closed.")
         except Exception as e:
             print(f"Error closing client {client_ip}: {e}")
-
 
     def broadcast_audio(self, audio_chunk, sender_ip, timestamp):
         """

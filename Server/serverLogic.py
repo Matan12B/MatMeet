@@ -98,7 +98,7 @@ class Server:
         msg = serverProtocol.build_give_meeting_code(meeting_id)
         print("sending meeting code", meeting_id)
         self.comm.send_msg(ip, msg)
-        msg = serverProtocol.build_give_role("host", meeting_port)
+        msg = serverProtocol.build_give_role("host", meeting_port, shared_key)
         self.comm.send_msg(ip, msg)
 
     def join_meeting(self, ip, data):
@@ -117,7 +117,7 @@ class Server:
             other_clients = [client for client in self.meetings[meeting_id][1] if client != ip]
             print(f"Client {ip} joined meeting {meeting_id}")
             # Send success message with meeting info
-            msg = serverProtocol.build_give_role("guest")
+            msg = serverProtocol.build_give_role("guest", shared_key)
             self.comm.send_msg(ip, msg)
             for client_ip in other_clients:
                 notify_msg = serverProtocol.build_client_joined(ip)

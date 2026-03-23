@@ -75,7 +75,7 @@ class Client:
             A list containing initialization information:
             - data[0]: str - Specifies the role ('host' or 'guest').
             - data[1]: Any - Contains open client information.
-            - data[2]: int - Port number for the connection.
+            - data[2]: int - meeting_key
 
         Raises:
         ValueError
@@ -83,11 +83,13 @@ class Client:
         """
         role = data[0]
         port = int(data[1])
-        open_clients = {}
+        meeting_key = data[2]
         if role == "host":
-            self.role = Host(port, self.meeting_code, open_clients, self.comm)
+            self.role = Host(port, meeting_key, self.comm)
         elif role == "guest":
-            self.role = CallLogic(port, self.meeting_code, open_clients, self.comm)
+            if len(data) == 5:
+                audio_ip = data[4]
+                self.role = CallLogic(port, meeting_key, self.comm)
         else:
             print("Invalid role")
 

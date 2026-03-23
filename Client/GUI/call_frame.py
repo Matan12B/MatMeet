@@ -1,12 +1,12 @@
 import wx
 import cv2
 import numpy as np
-
+import time
 
 class CallFrame(wx.Frame):
 
     def __init__(self, call_logic):
-        super().__init__(None, title="Meeting", size=(900,700))
+        super().__init__(None, title="Meeting", size=(1024, 768))
         self.call_logic = call_logic
 
         # Start the call logic in background
@@ -21,18 +21,18 @@ class CallFrame(wx.Frame):
         # Video grid
         # -----------------
 
-        self.video_grid = wx.GridSizer(2,2,5,5)
+        self.video_grid = wx.GridSizer(2, 2, 5, 5)
         self.video_panels = []
 
+        camera_width, camera_height = 478, 359  # Frame size for 4:3 aspect ratio
+
         for i in range(4):
-
             bitmap = wx.StaticBitmap(panel)
-            bitmap.SetMinSize((320,240))
-
+            bitmap.SetMinSize((camera_width, camera_height))
             self.video_panels.append(bitmap)
-            self.video_grid.Add(bitmap,1,wx.EXPAND)
+            self.video_grid.Add(bitmap, 1, wx.EXPAND)
 
-        main_sizer.Add(self.video_grid,1,wx.EXPAND | wx.ALL,10)
+        main_sizer.Add(self.video_grid, 1, wx.EXPAND | wx.ALL, 10)
 
         # -----------------
         # Control bar
@@ -40,16 +40,16 @@ class CallFrame(wx.Frame):
 
         controls = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.mic_btn = wx.Button(panel,label="Mute")
-        self.cam_btn = wx.Button(panel,label="Camera Off")
-        self.leave_btn = wx.Button(panel,label="Leave")
+        self.mic_btn = wx.Button(panel, label="Mute")
+        self.cam_btn = wx.Button(panel, label="Camera Off")
+        self.leave_btn = wx.Button(panel, label="Leave")
 
-        controls.Add(self.mic_btn,0,wx.ALL,5)
-        controls.Add(self.cam_btn,0,wx.ALL,5)
+        controls.Add(self.mic_btn, 0, wx.ALL, 5)
+        controls.Add(self.cam_btn, 0, wx.ALL, 5)
         controls.AddStretchSpacer()
-        controls.Add(self.leave_btn,0,wx.ALL,5)
+        controls.Add(self.leave_btn, 0, wx.ALL, 5)
 
-        main_sizer.Add(controls,0,wx.EXPAND | wx.ALL,10)
+        main_sizer.Add(controls, 0, wx.EXPAND | wx.ALL, 10)
 
         panel.SetSizer(main_sizer)
 
@@ -65,32 +65,39 @@ class CallFrame(wx.Frame):
         # Store frames for display
         self.client_frames = {}
 
+        # fps
+        self.last_update = 0
+        self.fps = 24
         # Timer updates video
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.update_frames)
-        self.timer.Start(30)
-
+        self.timer.Start(int(1000/24))
 
     def update_frames(self, event):
-        # Get own camera frame
+        # Display own camera frame
+        now = time.time()
+        if now - self.last_update < 1 / self.fps:
+            return  # skip this tick if too soon
+        self.last_update = now
         if hasattr(self.call_logic, 'camera') and self.call_logic.camera:
-            my_frame = self.call_logic.camera.get_frame()
-            if my_frame is not None:
-                self._display_frame(0, my_frame)
+            frame_bytes = self.call_logic.camera.get_frame()
+            if frame_bytes is not None:
+                # Decode JPEG bytes into a NumPy array
+                frame = cv2.imdecode(np.frombuffer(frame_bytes, np.uint8), cv2.IMREAD_COLOR)
+                if frame is not None:
+                    self._display_frame(0, frame)
 
-        # Get frames from sync_buffer (other participants)
+        # Display frames from other participants
         if hasattr(self.call_logic, 'sync_buffer'):
             panel_idx = 1
             for client_ip, timestamps in list(self.call_logic.sync_buffer.items()):
-                if panel_idx >= 4:  # Only 4 panels available
+                if panel_idx >= 4:
                     break
-
-                # Get latest frame for this client
                 for timestamp in sorted(timestamps.keys(), reverse=True):
                     data = timestamps[timestamp]
                     if data.get("video") is not None:
-                        frame = data["video"]
-                        self._display_frame(panel_idx, frame)
+                        other_frame = data["video"]
+                        self._display_frame(panel_idx, other_frame)
                         panel_idx += 1
                         break
 
@@ -99,12 +106,15 @@ class CallFrame(wx.Frame):
         if frame is None or panel_idx >= len(self.video_panels):
             return
 
-        # Resize frame to fit panel
-        frame = cv2.resize(frame, (320, 240))
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        h, w = rgb.shape[:2]
-        bitmap = wx.Bitmap.FromBuffer(w, h, rgb)
-        self.video_panels[panel_idx].SetBitmap(bitmap)
+        try:
+            # Resize frame to fit 478x359 display panel
+            frame_resized = cv2.resize(frame, (478, 359))
+            rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+            h, w = rgb.shape[:2]
+            bitmap = wx.Bitmap.FromBuffer(w, h, rgb)
+            self.video_panels[panel_idx].SetBitmap(bitmap)
+        except Exception as e:
+            print("Display error:", e)
 
     def toggle_mic(self, event):
         """Toggle microphone mute/unmute"""

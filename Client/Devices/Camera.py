@@ -9,7 +9,7 @@ class CameraControl:
     Continuously captures frames from the webcam, encodes them as JPEG bytes.
     """
 
-    def __init__(self, width=320, height=240, jpeg_quality=90):
+    def __init__(self, width=320, height=240, jpeg_quality=60):
         self.width = width
         self.height = height
         self.jpeg_quality = jpeg_quality
@@ -17,7 +17,6 @@ class CameraControl:
         self.cam = cv2.VideoCapture(0)
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-
         self.last_frame = None
         self.running = False
         self.lock = threading.Lock()
@@ -38,21 +37,28 @@ class CameraControl:
             print("Camera stopped.")
 
     def _capture_loop(self):
-        """Continuously capture frames, encode to JPEG, and store bytes."""
+        """Continuously capture frames, resize, encode to JPEG, and store bytes ready to send."""
         while self.running:
             ret, frame = self.cam.read()
             if not ret:
                 continue
 
-            # Encode as JPEG
-            success, encoded_frame = cv2.imencode('.jpg', frame, self.encode_param)
-            if not success:
-                continue
+            try:
+                # Resize to desired size (478x359)
+                frame_resized = cv2.resize(frame, (self.width, self.height))
 
-            # Convert to raw bytes and store
-            frame_bytes = encoded_frame.tobytes()
-            with self.lock:
-                self.last_frame = frame_bytes
+                # Encode as JPEG directly
+                success, encoded_frame = cv2.imencode('.jpg', frame_resized, self.encode_param)
+                if not success:
+                    continue
+
+                # Convert to bytes and store
+                frame_bytes = encoded_frame.tobytes()
+                with self.lock:
+                    self.last_frame = frame_bytes
+
+            except Exception as e:
+                print(f"Camera capture error: {e}")
 
     def get_frame(self):
         """Return the latest JPEG-encoded frame bytes."""

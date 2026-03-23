@@ -18,14 +18,14 @@ from MatMeet.Client.Protocol import clientProtocol
 
 class CallLogic:
     # todo video port audio port
-    def __init__(self, port, key, open_clients, comm, audio_server_ip, video_server_ip):
-        self.open_clients = open_clients
+    def __init__(self, port, key, comm, audio_server_ip):
+        self.open_clients = {}
         self.soc = socket.socket()
         self.msgQ = queue.Queue()
         self.display = VideoDisplay()
         self.call_comm = comm
-        self.audio_comm = AudioClient(audio_server_ip, port, self.msgQ)
-        self.video_comm = VideoComm(video_server_ip, port, self.msgQ)
+        self.audio_comm = AudioClient(audio_server_ip, port)
+        self.video_comm = VideoComm(port, key, self.open_clients)
         hostname = socket.gethostname()
         self.ip = socket.gethostbyname(hostname)
         self.commands = {

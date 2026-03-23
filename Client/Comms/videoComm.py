@@ -10,7 +10,7 @@ from MatMeet.Client.Devices.Camera import CameraControl
 
 
 class VideoComm:
-    def __init__(self, port, key_string, users=[]):
+    def __init__(self, port, key_string, users={}):
         """
         Video communication over UDP with AES encryption and JPEG compression.
         :param port: Local UDP port to bind
@@ -21,7 +21,7 @@ class VideoComm:
         self.udp_socket.bind(("0.0.0.0", port))
         self.AES = AESCipher(key_string)
         self.frameQ = queue.Queue()
-        self.users = users if users else []
+        self.users = users
         self.running = True
         self.MAX_PACKET_SIZE = 65507  # max UDP datagram size
         threading.Thread(target=self._receive_frames, daemon=True).start()
@@ -44,27 +44,18 @@ class VideoComm:
             except Exception as e:
                 print("Receive error:", e)
 
-    def send_frame(self, frame):
+    def send_frame(self, frame_bytes):
         """
-        Compress frame to JPEG, encrypt it, and send to all users.
-        :param frame: NumPy array (BGR)
+        Send a pre-encoded JPEG frame to all users.
+        :param frame_bytes: JPEG bytes (already resized and encoded)
         """
         try:
-            # Resize frame to reduce size
-            frame = cv2.resize(frame, (320, 240))
-            # Compress frame as JPEG
-            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 15])
-            if not ret:
-                return
-            frame_bytes = buffer.tobytes()
-            size_bytes = len(frame_bytes)
-            print(f"Frame size: {size_bytes} bytes")
             # Encrypt
             encrypted = self.AES.encrypt_file(frame_bytes)
 
             # Send to all users
-            for user in self.users:
-                self.udp_socket.sendto(encrypted, user)
+            for ip, port in self.users.items():
+                self.udp_socket.sendto(encrypted, (ip, port))
 
         except Exception as e:
             print("Send error:", e)
@@ -73,15 +64,14 @@ class VideoComm:
         """
         Add a user to broadcast list.
         """
-        if (user_ip, user_port) not in self.users:
-            self.users.append((user_ip, user_port))
+        self.users[user_ip] = user_port
 
     def remove_user(self, user_ip, user_port):
         """
         Remove user from broadcast list.
         """
-        if (user_ip, user_port) in self.users:
-            self.users.remove((user_ip, user_port))
+        if user_ip in self.users:
+            del self.users[user_ip]
 
     def close(self):
         """
@@ -97,8 +87,8 @@ class VideoComm:
 
 def main():
     key = "testkey123"
-    port = 5001
-    remote_port = 5000
+    port = 5000
+    remote_port = 5001
     remote_ip = "192.168.4.73"
 
     # Create video communication system
@@ -114,7 +104,7 @@ def main():
     print("Video communication started. Press 'q' to quit.")
 
     # Initialize CameraControl to handle camera
-    cam = CameraControl(width=160, height=120)
+    cam = CameraControl(width=478, height=359)
     cam.start()
     recv_frame = None
     addr = None

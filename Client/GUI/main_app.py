@@ -1,12 +1,12 @@
 import wx
 from home_frame import HomeFrame
-from Client.Logic.clientLogic import Client
+from MatMeet.Client.Logic.clientLogic import Client
 
 class ZoomApp(wx.App):
 
     def OnInit(self):
         # Pass None for client to run in UI-only mode
-        self.client = Client("127.0.0.1", 3018)
+        self.client = Client("192.168.4.74", 3018)
         frame = HomeFrame(client=self.client)
         frame.Show()
         return True
