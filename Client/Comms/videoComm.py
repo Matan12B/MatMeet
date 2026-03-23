@@ -99,7 +99,7 @@ def main():
     key = "testkey123"
     port = 5001
     remote_port = 5000
-    remote_ip = "192.168.4.74"
+    remote_ip = "192.168.4.73"
 
     # Create video communication system
     video_comm = VideoComm(port, key, users=[])
@@ -140,7 +140,7 @@ def main():
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-            time.sleep(0.07)  # slight delay to reduce CPU
+            time.sleep(1/24)  # slight delay to reduce CPU
 
     except KeyboardInterrupt:
         print("Shutting down...")
