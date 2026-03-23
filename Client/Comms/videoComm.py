@@ -122,18 +122,12 @@ def main():
     try:
         while True:
             # Get the latest frame from the CameraControl
-            frame_data = cam.get_frame()
-
-            if frame_data is not None:
-                # Decode the frame (since it's a pickled byte stream)
-                encoded_frame = pickle.loads(frame_data)
-                # Decode back to a NumPy array (BGR frame)
-                frame = cv2.imdecode(encoded_frame, cv2.IMREAD_COLOR)
-
+            frame_bytes = cam.get_frame()
+            if frame_bytes is not None:
+                # Decode JPEG bytes directly
+                frame = cv2.imdecode(np.frombuffer(frame_bytes, np.uint8), cv2.IMREAD_COLOR)
                 if frame is not None:
-                    # Send the captured frame
                     video_comm.send_frame(frame)
-                    # Show the captured frame on local window
                     cv2.imshow("My Camera", frame)
 
             # Display received frames from other users
