@@ -4,13 +4,12 @@ import queue
 import time
 import cv2
 import numpy as np
-import pickle
 from MatMeet.Common.Cipher import AESCipher
 from MatMeet.Client.Devices.Camera import CameraControl
 
 
 class VideoComm:
-    def __init__(self, port, key_string, users={}):
+    def __init__(self, port, key_string, users):
         """
         Video communication over UDP with AES encryption and JPEG compression.
         :param port: Local UDP port to bind
@@ -52,8 +51,6 @@ class VideoComm:
         try:
             # Encrypt
             encrypted = self.AES.encrypt_file(frame_bytes)
-            # Send to all users
-            print(self.users.items())
             for ip, port in self.users.items():
                 self.udp_socket.sendto(encrypted, (ip, port))
         except Exception as e:

@@ -18,7 +18,7 @@ class Server:
         # [ip] = [username, call_id]
         self.open_clients = {}
 
-        # [call_id] = [call_key, list_of_clients]
+        # [call_id] = [call_key, list_of_clients, host_ip]
         self.meetings = {}
 
         # Command handlers
@@ -87,9 +87,9 @@ class Server:
         """
         meeting_id = self.generate_call_id()
         shared_key = self.generate_shared_key()
-        # Store meeting: [call_id] = [port, shared_key, [list of client IPs]]
+        # Store meeting: [call_id] = [port, shared_key, [list of client IPs], host]
         meeting_port = self.generate_port()
-        self.meetings[meeting_id] = [meeting_port, shared_key, [ip]]
+        self.meetings[meeting_id] = [meeting_port, shared_key, [ip], ip]
         # Update client's meeting ID
         if ip in self.open_clients:
             self.open_clients[ip][1] = meeting_id
@@ -117,7 +117,7 @@ class Server:
             print(f"Client {ip} joined meeting {meeting_id}")
 
             # Send success message to new client
-            msg = serverProtocol.build_give_role("guest", meeting_port, shared_key)
+            msg = serverProtocol.build_give_role("guest", meeting_port, shared_key, self.meetings[meeting_id][3])
             self.comm.send_msg(ip, msg)
 
             # Notify other clients
