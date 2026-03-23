@@ -58,9 +58,9 @@ class VideoComm:
                 return
             frame_bytes = buffer.tobytes()
             size_bytes = len(frame_bytes)
-            print(f"Frame size: {size_bytes} bytes")
             # Encrypt
             encrypted = self.AES.encrypt_file(frame_bytes)
+            print(f"Frame size: {len(encrypted)} bytes")
 
             # Send to all users
             for user in self.users:
@@ -97,8 +97,8 @@ class VideoComm:
 
 def main():
     key = "testkey123"
-    port = 5001
-    remote_port = 5000
+    port = 5000
+    remote_port = 5001
     remote_ip = "192.168.4.74"
 
     # Create video communication system
@@ -108,6 +108,7 @@ def main():
     if remote_ip:
         video_comm.add_user(remote_ip, remote_port)
         print(f"Connected to {remote_ip}:{remote_port}")
+        print(video_comm.users)
     else:
         print("No remote IP provided. Waiting for incoming connections...")
 
