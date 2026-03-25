@@ -149,7 +149,6 @@ class CallLogic:
         """New peer joined (store port and add to VideoComm)"""
         print(f"{ip} joined the call")
         self.open_clients[ip] = port
-        self.video_comm.add_user(ip, port)
 
     def handle_disconnect(self, ip, username):
         """Peer left the call"""

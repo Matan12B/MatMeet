@@ -225,7 +225,6 @@ class Host:
         """
         ip = data[0]
         port = data[1]
-        self.host_comm.connect_client(ip)
         # [ip] = socket, port
         print("adding", ip, "to open clients")
         self.open_clients[ip] = [None,port]
