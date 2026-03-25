@@ -12,12 +12,14 @@ import select
 
 # client
 class AudioClient:
-    def __init__(self, server_ip, port):
+    def __init__(self, server_ip, port, AES):
         self.my_socket = socket.socket()
         self.server_ip = server_ip
         self.port = 3000 # todo from settings
         self.recvQ = queue.Queue()
-        self.cipher = None
+        # todo check if we need to exchange keys or not
+        # self.cipher = None
+        self.cipher = AES
         self.open = False
         self.file_counter = 0
         threading.Thread(target=self._mainLoop,).start()
@@ -32,8 +34,8 @@ class AudioClient:
         except Exception as e:
             print("error in connect:", e)
             sys.exit("server is down - try later")
-
-        self._exchange_key()
+        #todo check if we need to exchange keys or not
+        # self._exchange_key()
         if not self.cipher:
             sys.exit("couldn't exchange keys")
         self.open = True

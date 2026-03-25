@@ -81,6 +81,7 @@ class Client:
         ValueError
             If the role specified in data[0] is invalid or unsupported.
         """
+        host_ip = ""
         role = data[0]
         port = int(data[1])
         meeting_key = data[2]
@@ -103,7 +104,6 @@ class Client:
             msg = self.msgsQ.get()
             print(f"Received message: {msg}")
             opcode, data = clientProtocol.unpack(msg)
-            print(opcode, data)
             if opcode in self.commands:
                 self.commands[opcode](data)
 

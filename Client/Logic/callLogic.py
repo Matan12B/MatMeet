@@ -25,8 +25,9 @@ class CallLogic:
         self.msgQ = queue.Queue()
         self.display = VideoDisplay()
         self.call_comm = comm
-        self.audio_comm = AudioClient(audio_server_ip, port)
-        self.video_comm = VideoComm(port, key, self.open_clients)
+        self.AES = AESCipher(key)
+        self.audio_comm = AudioClient(audio_server_ip, port, self.AES)
+        self.video_comm = VideoComm(port, self.AES , self.open_clients)
         # hostname = socket.gethostname()
         # self.ip = socket.gethostbyname(hostname)
         self.ip = "10.0.0.5"
