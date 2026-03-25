@@ -1,3 +1,5 @@
+import time
+
 import wx
 from call_frame import CallFrame
 
@@ -49,6 +51,7 @@ class HomeFrame(wx.Frame):
             return
 
         # Request to join meeting
+        # todo if isinstance(client, callLogic)
         self.client.request_join_meeting(code)
 
         # Wait briefly for server response
@@ -56,6 +59,10 @@ class HomeFrame(wx.Frame):
 
     def _open_call_frame(self):
         # Open call frame with client logic
+        while self.client.role is None:
+            time.sleep(0.02)
+            continue
+        print("role recvd", self.client.role)
         if self.client.role:
             call = CallFrame(self.client.role)
             call.Show()

@@ -1,11 +1,11 @@
 import queue
 import threading
 import time
-from Client.Comms.ClientComm import ClientComm
-from Client.Protocol import clientProtocol
-from Client.Logic.Host import Host
-from Client.Logic.callLogic import CallLogic
-from Server.ServerComm import ServerComm
+from MatMeet.Client.Comms.ClientComm import ClientComm
+from MatMeet.Client.Protocol import clientProtocol
+from MatMeet.Client.Logic.Host import Host
+from MatMeet.Client.Logic.callLogic import CallLogic
+from MatMeet.Server.ServerComm import ServerComm
 
 
 class Client:
@@ -75,7 +75,7 @@ class Client:
             A list containing initialization information:
             - data[0]: str - Specifies the role ('host' or 'guest').
             - data[1]: Any - Contains open client information.
-            - data[2]: int - Port number for the connection.
+            - data[2]: int - meeting_key
 
         Raises:
         ValueError
@@ -83,11 +83,14 @@ class Client:
         """
         role = data[0]
         port = int(data[1])
-        open_clients = {}
+        meeting_key = data[2]
+        host_ip = data[3]
+        print("giving role", data[0])
+
         if role == "host":
-            self.role = Host(port, self.meeting_code, open_clients, self.comm)
+            self.role = Host(port, meeting_key, self.comm)
         elif role == "guest":
-            self.role = CallLogic(port, self.meeting_code, open_clients, self.comm)
+            self.role = CallLogic(port, meeting_key, self.comm, host_ip)
         else:
             print("Invalid role")
 
