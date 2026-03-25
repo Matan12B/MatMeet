@@ -20,7 +20,7 @@ class ClientComm:
         self.recvQ = recvQ
         self.cipher = None
         self.open = False
-        self.file_counter = 0
+        self.open_clients= {}
         threading.Thread(target=self._mainLoop,).start()
 
     def _mainLoop(self):
@@ -81,18 +81,17 @@ class ClientComm:
         """
         self._close_client()
 
-    def client_exchange(self, diffie, socket):
+    def client_exchange(self, diffie):
         """
         exchange keys with server according to clientProtocol
         :param diffie: diffie helman object
-        :param socket: socket
         :return: shared key as string
         """
         server_public_key = None
         ret = None
         try:
-            server_public_key = int(socket.recv(5).decode())
-            socket.send(str(diffie.public_key).zfill(5).encode())
+            server_public_key = int(self.my_socket.recv(5).decode())
+            self.my_socket.send(str(diffie.public_key).zfill(5).encode())
         except Exception as e:
             print(f"Error in receiving/sending public key: {e}")
         if server_public_key:
@@ -106,7 +105,7 @@ class ClientComm:
         :return: if exchanged
         """
         diffie = DiffiHelman()
-        shared_key = self.client_exchange(diffie, self.my_socket)
+        shared_key = self.client_exchange(diffie)
         flag = False
         if shared_key:
             self.cipher = AESCipher(shared_key)

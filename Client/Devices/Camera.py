@@ -4,7 +4,7 @@ import threading
 
 
 class CameraControl:
-    def __init__(self, width=640, height=480):
+    def __init__(self, width=320, height=240):
         self.cam = cv2.VideoCapture(0)
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, height)

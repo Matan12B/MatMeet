@@ -66,7 +66,7 @@ class DiffiHelman:
         """
         Create shared key and return it
         """
-        return pow(other_public_key, self.private_key, self.p)
+        return str(pow(other_public_key, self.private_key, self.p))
 
 def main():
     diffie = DiffiHelman()

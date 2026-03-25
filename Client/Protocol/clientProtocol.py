@@ -2,6 +2,10 @@ def unpack(msg):
     """
     Return list of parameters from the msg
     """
+    split = msg.split("^#^")
+    if len(split) > 2:
+        return [split[0], split[1:]]
+    return split
 
 def build_msg(msg):
     """
@@ -69,8 +73,7 @@ def build_open_meeting_msg():
     """
     Return a register msg build in the protocol structure
     """
-    opcode = ""
-    return opcode
+    return "om"
 def build_username_msg(username):
     """
     Return a register msg build in the protocol structure
