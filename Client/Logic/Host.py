@@ -134,8 +134,11 @@ class Host:
         :param data: data
         :return:
         """
-        if opcode in self.commands:
-            self.commands[opcode](data)
+        try:
+            if opcode in self.commands:
+                self.commands[opcode](data)
+        except Exception as e:
+            print(f"Error handling message: {e}")
 
 
     def send_video(self, username, frame):
@@ -214,12 +217,14 @@ class Host:
             del self.open_clients[ip]
 
 
-    def handle_join(self, ip, port):
+    def handle_join(self, data):
         """
         Connect a client to the call or server.
         :param port: port
         :param ip: The IP address of the client to connect.
         """
+        ip = data[0]
+        port = data[1]
         self.host_comm.connect_client(ip)
         # [ip] = socket, port
         print("adding", ip, "to open clients")
