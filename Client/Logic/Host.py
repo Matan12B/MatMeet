@@ -80,8 +80,7 @@ class Host:
             while True:
                 frame = self.camera.get_frame()
                 if frame is not None:
-                    self.send_video(self.ip, frame)
-                # audio_chunk = self.mic.record()
+                    self.video_comm.send_frame(frame)
                 # if audio_chunk:
                 #     self.send_audio(self.ip, audio_chunk)
 
@@ -139,17 +138,6 @@ class Host:
                 self.commands[opcode](data)
         except Exception as e:
             print(f"Error handling message: {e}")
-
-
-    def send_video(self, username, frame):
-        """
-        Send video (image) to a specific user.
-
-        :param username: The username of the target client.
-        :param frame: The image (video frame) to send to the user.
-        """
-        if frame:
-            self.video_comm.send_frame(frame)
 
     def send_audio(self, username, audio, timestamp):
         """

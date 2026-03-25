@@ -53,7 +53,7 @@ def build_client_joined(ip, port, shared_key):
     """
 
     """
-    return f"hj^#^{ip, port, shared_key}"
+    return f"hj^#^{ip}^#^{port}^#^{shared_key}"
 
 
 
