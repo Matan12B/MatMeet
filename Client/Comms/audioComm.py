@@ -12,7 +12,7 @@ import select
 
 # client
 class AudioClient:
-    def __init__(self, server_ip, port, AES):
+    def __init__(self, server_ip, AES):
         self.my_socket = socket.socket()
         self.server_ip = server_ip
         self.port = 3000 # todo from settings

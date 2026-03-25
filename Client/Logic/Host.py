@@ -34,10 +34,10 @@ class Host:
         self.msgQ = queue.Queue()
         self.display = VideoDisplay()
         self.host_comm = comm
-        self.host_server = ClientServer(port, self.msgQ, self.open_clients)
+       #  self.host_server = ClientServer(port, self.msgQ, self.open_clients)
         # todo add port to audio and video comm
         self.AES = AESCipher(meeting_key)
-        self.audio_comm = AudioServer(self.AES, self.open_clients)
+        # self.audio_comm = AudioServer(self.AES, self.open_clients)
         self.video_comm = VideoComm(self.AES, self.open_clients)
         # for getting the current user ip
         hostname = socket.gethostname()

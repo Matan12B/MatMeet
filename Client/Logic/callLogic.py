@@ -26,8 +26,8 @@ class CallLogic:
         self.display = VideoDisplay()
         self.call_comm = comm
         self.AES = AESCipher(key)
-        self.audio_comm = AudioClient(audio_server_ip, port, self.AES)
-        self.video_comm = VideoComm(port, self.AES , self.open_clients)
+        # self.audio_comm = AudioClient(audio_server_ip, self.AES)
+        self.video_comm = VideoComm(self.AES , self.open_clients)
         # hostname = socket.gethostname()
         # self.ip = socket.gethostbyname(hostname)
         self.ip = "10.0.0.5"
