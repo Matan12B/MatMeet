@@ -33,7 +33,6 @@ class VideoComm:
         while self.running:
             try:
                 data, addr = self.udp_socket.recvfrom(self.MAX_PACKET_SIZE)
-                print("recvd frame:",len(data), addr)
                 decrypted_data = self.AES.decrypt_file(data)
                 # Decode JPEG bytes back to NumPy array
                 np_arr = np.frombuffer(decrypted_data, np.uint8)

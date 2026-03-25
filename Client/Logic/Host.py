@@ -52,6 +52,7 @@ class Host:
         self.camera = CameraControl()
         self.mic = Microphone(50)
         self.sync_buffer = {}
+        self.running = True
 
     def start(self):
         """
@@ -67,6 +68,7 @@ class Host:
         self.camera.start()
         self.mic.start()
         self.mic.unmute()
+        threading.Thread(target=self.receive_video_loop, daemon=True).start()
 
         # Start communication threads (assuming they have start() method)
         # threading.Thread(
@@ -95,7 +97,7 @@ class Host:
             self.camera.stop()
             self.mic.stop()
             self.mic.close()
-
+            self.running = False
     # def handle_msgs(self):
     #     """
     #     Threaded method: Waits for messages from clients.
@@ -126,6 +128,21 @@ class Host:
     #                     self.AudioOutput.play(audio)
     #                     del self.sync_buffer[client][timestamp]
     #         time.sleep(0.01)
+
+    def receive_video_loop(self):
+        """Receive incoming frames from peers into sync_buffer"""
+        while self.running:
+            while not self.video_comm.frameQ.empty():
+                frame, addr = self.video_comm.frameQ.get()
+                client_ip = addr[0]
+                timestamp = time.time()
+                if client_ip not in self.sync_buffer:
+                    self.sync_buffer[client_ip] = {}
+                if timestamp not in self.sync_buffer[client_ip]:
+                    self.sync_buffer[client_ip][timestamp] = {"audio": None, "video": None}
+                self.sync_buffer[client_ip][timestamp]["video"] = frame
+            time.sleep(0.005)
+
     def handle_msgs_from_client_logic(self, opcode, data):
         """
         handle messages from client logic call functions

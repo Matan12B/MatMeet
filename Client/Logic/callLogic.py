@@ -120,14 +120,11 @@ class CallLogic:
                 frame, addr = self.video_comm.frameQ.get()
                 client_ip = addr[0]
                 timestamp = time.time()
-
                 if client_ip not in self.sync_buffer:
                     self.sync_buffer[client_ip] = {}
                 if timestamp not in self.sync_buffer[client_ip]:
                     self.sync_buffer[client_ip][timestamp] = {"audio": None, "video": None}
-
                 self.sync_buffer[client_ip][timestamp]["video"] = frame
-
             time.sleep(0.005)
 
     # === Command Handlers ===
