@@ -84,7 +84,7 @@ class Client:
         role = data[0]
         port = int(data[1])
         meeting_key = data[2]
-        if role == "host" and len(data) == 4:
+        if role == "guest" and len(data) == 4:
             host_ip = data[3]
         if role == "host":
             self.role = Host(port, meeting_key, self.comm)
