@@ -81,7 +81,7 @@ class Host:
 
                         self.UI_queue.put(frame.copy())
 
-                        ok, encoded = cv2.imencode('.jpg', frame)
+                        ok, encoded = cv2.imencode('.jpg', frame, self.encode_params)
                         if ok:
                             frame_bytes = encoded.tobytes()
                             frame_data = clientProtocol.build_video_msg(timestamp, frame_bytes)
