@@ -65,7 +65,7 @@ class CallLogic:
         threading.Thread(target=self.receive_audio_loop, daemon=True).start()
 
         try:
-            while self.running and self.meeting_start_time is not None:
+            while self.running:
                 # Capture and send own video
                 if self.meeting_start_time is not None:
                     timestamp = time.time() - self.meeting_start_time
@@ -121,9 +121,10 @@ class CallLogic:
 
     def handle_msgs_from_host(self):
         """
-
+        handle msgs from host server
         """
-        while True:
+        print("started listening to host server")
+        while self.running:
             msg = self.msgQ.get()
             print(f"Received message: {msg}")
             opcode, data = clientProtocol.unpack(msg)
