@@ -56,6 +56,7 @@ class VideoComm:
         if not frame_data:
             return
         encrypted = self.AES.encrypt_file(frame_data)
+        print(f"sending frame of size {len(encrypted)}")
         for ip in self.open_clients:
             self.udp_socket.sendto(encrypted, (ip, self.port))
 

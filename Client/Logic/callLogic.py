@@ -39,7 +39,7 @@ class CallLogic:
         self.camera = CameraControl(width=359, height=270, jpeg_quality=5)
         self.mic = Microphone(50)
         self.AudioOutput = AudioOutput()
-
+        self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 20]
         # Buffers
         self.sync_buffer = {}
         self.send_queue = queue.Queue()
@@ -102,7 +102,7 @@ class CallLogic:
 
                         self.UI_queue.put(frame.copy())
 
-                        ok, encoded = cv2.imencode('.jpg', frame)
+                        ok, encoded = cv2.imencode('.jpg', frame, self.encode_params)
                         if ok:
                             frame_bytes = encoded.tobytes()
                             frame_data = clientProtocol.build_video_msg(timestamp, frame_bytes)
