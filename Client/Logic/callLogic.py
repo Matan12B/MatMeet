@@ -76,7 +76,7 @@ class CallLogic:
                 #     timestamp = time.time()
                 #     self.audio_comm.send_audio(audio_chunk)
 
-                time.sleep(0.01)
+                time.sleep(0.001)
 
         except KeyboardInterrupt:
             print("Call interrupted.")
