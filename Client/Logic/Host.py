@@ -262,6 +262,9 @@ class Host:
         # [ip] = socket, port
         print("adding", ip, "to open clients")
         self.open_clients[ip] = [None,port]
+        time.sleep(0.1)
+        while self.open_clients[ip][0] is not None:
+            time.sleep(0.01)
         self.send_meeting_start_time(ip)
 
     def send_meeting_start_time(self, ip):
