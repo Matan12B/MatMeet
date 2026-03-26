@@ -43,7 +43,6 @@ class CallLogic:
 
         # Buffers
         self.sync_buffer = {}
-        self.UI_queue = queue.Queue()
         self.send_queue = queue.Queue()
 
         # Timing/network identity
@@ -56,6 +55,7 @@ class CallLogic:
             "hd": self.handle_disconnect,
             "gmst": self.get_meeting_start_time
         }
+        self.remote_video_queue = queue.Queue()
 
         self.running = True
 
@@ -77,7 +77,7 @@ class CallLogic:
 
         if not self.running:
             return
-
+        threading.Thread(target=self.playback_loop, daemon=True).start()
         threading.Thread(target=self.receive_video_loop, daemon=True).start()
         threading.Thread(target=self.receive_audio_loop, daemon=True).start()
 
@@ -281,6 +281,43 @@ class CallLogic:
         for ts in list(timestamps.keys()):
             if ts not in latest:
                 del timestamps[ts]
+
+    def playback_loop(self):
+        while self.running:
+            if self.meeting_start_time is None:
+                time.sleep(0.01)
+                continue
+
+            current_time = time.time() - float(self.meeting_start_time)
+
+            for client_ip in list(self.sync_buffer.keys()):
+                timestamps = sorted(self.sync_buffer[client_ip].keys())
+
+                for ts in timestamps:
+                    if ts > current_time:
+                        break
+
+                    data = self.sync_buffer[client_ip][ts]
+                    frame = data.get("video")
+                    audio = data.get("audio")
+
+                    if audio is not None:
+                        try:
+                            self.AudioOutput.play(audio)
+                        except Exception as e:
+                            print("audio play error:", e)
+
+                    if frame is not None:
+                        while self.remote_video_queue.qsize() >= 3:
+                            try:
+                                self.remote_video_queue.get_nowait()
+                            except queue.Empty:
+                                break
+                        self.remote_video_queue.put((client_ip, frame))
+
+                    del self.sync_buffer[client_ip][ts]
+
+            time.sleep(0.01)
 
     # =====================
     # Command handlers

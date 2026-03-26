@@ -7,6 +7,7 @@ import numpy as np
 
 from Client.Devices.Camera import CameraControl
 from Client.Devices.Microphone import Microphone
+from Client.Devices.AudioOutputDevice import AudioOutput
 from Client.Comms.videoComm import VideoComm
 from Client.Comms.audioComm import AudioServer
 from Client.GUI.VideoDisplay import VideoDisplay
@@ -31,6 +32,8 @@ class Host:
         self.ip = socket.gethostbyname(hostname)
 
         self.UI_queue = queue.Queue()
+        self.remote_video_queue = queue.Queue()
+        self.latest_remote_frames = {}
 
         self.commands = {
             "hj": self.handle_join,
@@ -39,8 +42,9 @@ class Host:
 
         self.camera = CameraControl()
         self.mic = Microphone(50)
+        self.AudioOutput = AudioOutput()
 
-        # client_ip -> { timestamp -> {"audio": ..., "video": ...} }
+        # client_ip -> { sync_ts -> {"audio": ..., "video": ...} }
         self.sync_buffer = {}
 
         self.meeting_start_time = None
@@ -59,6 +63,8 @@ class Host:
 
         self.meeting_start_time = time.time()
 
+        threading.Thread(target=self.playback_loop, daemon=True).start()
+
         try:
             while self.running:
                 if self.meeting_start_time is not None:
@@ -66,7 +72,6 @@ class Host:
 
                     frame = self.camera.get_frame()
                     if frame is not None:
-                        # keep only newest self preview frame
                         while self.UI_queue.qsize() >= 1:
                             try:
                                 self.UI_queue.get_nowait()
@@ -119,8 +124,6 @@ class Host:
                             np.frombuffer(video_data, np.uint8),
                             cv2.IMREAD_COLOR
                         )
-                    else:
-                        frame = None
                 except Exception as e:
                     print("decode error:", e)
                     frame = None
@@ -131,16 +134,17 @@ class Host:
                 if self.meeting_start_time is None:
                     continue
 
-                rel_timestamp = timestamp - float(self.meeting_start_time)
+                rel_timestamp = float(timestamp)
+                sync_ts = round(rel_timestamp / 0.05) * 0.05
 
                 if client_ip not in self.sync_buffer:
                     self.sync_buffer[client_ip] = {}
 
-                if rel_timestamp not in self.sync_buffer[client_ip]:
-                    self.sync_buffer[client_ip][rel_timestamp] = {"audio": None, "video": None}
+                if sync_ts not in self.sync_buffer[client_ip]:
+                    self.sync_buffer[client_ip][sync_ts] = {"audio": None, "video": None}
 
-                self.sync_buffer[client_ip][rel_timestamp]["video"] = frame
-                self._prune_old_frames(client_ip, keep=3)
+                self.sync_buffer[client_ip][sync_ts]["video"] = frame
+                self._prune_old_frames(client_ip, keep=20)
 
             time.sleep(0.005)
 
@@ -157,19 +161,71 @@ class Host:
                 if self.meeting_start_time is None:
                     continue
 
-                rel_timestamp = timestamp - float(self.meeting_start_time)
+                rel_timestamp = float(timestamp)
+                sync_ts = round(rel_timestamp / 0.05) * 0.05
 
                 if client_ip not in self.sync_buffer:
                     self.sync_buffer[client_ip] = {}
 
-                if rel_timestamp not in self.sync_buffer[client_ip]:
-                    self.sync_buffer[client_ip][rel_timestamp] = {"video": None, "audio": None}
+                if sync_ts not in self.sync_buffer[client_ip]:
+                    self.sync_buffer[client_ip][sync_ts] = {"video": None, "audio": None}
 
-                self.sync_buffer[client_ip][rel_timestamp]["audio"] = audio_bytes
+                self.sync_buffer[client_ip][sync_ts]["audio"] = audio_bytes
+                self._prune_old_frames(client_ip, keep=20)
 
             time.sleep(0.005)
 
-    def _prune_old_frames(self, client_ip, keep=3):
+    def playback_loop(self):
+        """
+        Playback synced remote audio/video based on host meeting clock.
+        Audio is played here.
+        Video is pushed to remote_video_queue for the GUI.
+        """
+        while self.running:
+            if self.meeting_start_time is None:
+                time.sleep(0.01)
+                continue
+
+            current_time = time.time() - self.meeting_start_time
+
+            for client_ip in list(self.sync_buffer.keys()):
+                if client_ip not in self.sync_buffer:
+                    continue
+
+                timestamps = sorted(self.sync_buffer[client_ip].keys())
+
+                for ts in timestamps:
+                    # small delay buffer helps sync
+                    if ts > current_time - 0.10:
+                        break
+
+                    data = self.sync_buffer[client_ip].get(ts, {})
+                    frame = data.get("video")
+                    audio = data.get("audio")
+
+                    if audio is not None:
+                        try:
+                            self.AudioOutput.play(audio)
+                        except Exception as e:
+                            print("audio play error:", e)
+
+                    if frame is not None:
+                        self.latest_remote_frames[client_ip] = frame
+
+                        while self.remote_video_queue.qsize() >= 5:
+                            try:
+                                self.remote_video_queue.get_nowait()
+                            except queue.Empty:
+                                break
+
+                        self.remote_video_queue.put((client_ip, frame))
+
+                    if ts in self.sync_buffer[client_ip]:
+                        del self.sync_buffer[client_ip][ts]
+
+            time.sleep(0.01)
+
+    def _prune_old_frames(self, client_ip, keep=20):
         if client_ip not in self.sync_buffer:
             return
 
@@ -229,14 +285,16 @@ class Host:
                     print(f"Error in command {opcode}: {e}")
 
     def handle_video(self, client_ip, username, timestamp, frame):
+        sync_ts = round(float(timestamp) / 0.05) * 0.05
+
         if client_ip not in self.sync_buffer:
             self.sync_buffer[client_ip] = {}
 
-        if timestamp not in self.sync_buffer[client_ip]:
-            self.sync_buffer[client_ip][timestamp] = {"audio": None, "video": None}
+        if sync_ts not in self.sync_buffer[client_ip]:
+            self.sync_buffer[client_ip][sync_ts] = {"audio": None, "video": None}
 
-        self.sync_buffer[client_ip][timestamp]["video"] = frame
-        self._prune_old_frames(client_ip, keep=3)
+        self.sync_buffer[client_ip][sync_ts]["video"] = frame
+        self._prune_old_frames(client_ip, keep=20)
 
     def handle_disconnect(self, data):
         ip = data[0] if len(data) > 0 else ""
@@ -255,6 +313,9 @@ class Host:
         if ip in self.sync_buffer:
             del self.sync_buffer[ip]
 
+        if ip in self.latest_remote_frames:
+            del self.latest_remote_frames[ip]
+
         try:
             self.video_comm.remove_user(ip, 0)
         except Exception:
@@ -269,7 +330,6 @@ class Host:
         if ip not in self.open_clients:
             self.open_clients[ip] = [None, port]
         else:
-            # preserve socket if it already exists
             if isinstance(self.open_clients[ip], list) and len(self.open_clients[ip]) >= 2:
                 self.open_clients[ip][1] = port
             else:

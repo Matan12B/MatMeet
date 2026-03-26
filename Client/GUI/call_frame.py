@@ -9,7 +9,8 @@ class CallFrame(wx.Frame):
     def __init__(self, call_logic):
         super().__init__(None, title="Meeting", size=(1024, 768))
         self.call_logic = call_logic
-
+        self.last_self_frame = None
+        self.remote_frames = {}
         threading.Thread(target=self.call_logic.start, daemon=True).start()
 
         self.panel = wx.Panel(self)
@@ -62,8 +63,9 @@ class CallFrame(wx.Frame):
 
     def update_frames(self, event):
         # -----------------
-        # SELF PANEL (always panel 0)
-        # if no self video -> black
+        # SELF PANEL (panel 0)
+        # always show self camera if exists
+        # otherwise black
         # -----------------
         newest_self_frame = None
 
@@ -83,34 +85,52 @@ class CallFrame(wx.Frame):
             self._display_black(0)
 
         # -----------------
+        # REMOTE VIDEO QUEUE
+        # get newest synced frames chosen by CallLogic playback loop
+        # -----------------
+        if not hasattr(self, "remote_frames"):
+            self.remote_frames = {}
+
+        if hasattr(self.call_logic, "remote_video_queue"):
+            while True:
+                try:
+                    client_ip, frame = self.call_logic.remote_video_queue.get_nowait()
+                    if frame is not None:
+                        self.remote_frames[client_ip] = frame
+                except queue.Empty:
+                    break
+
+        # -----------------
         # REMOTE PANELS (1..3)
-        # connected client with no video -> black
-        # not connected client -> empty
+        # connected client with no frame yet -> black
+        # not connected -> empty
         # -----------------
         panel_idx = 1
 
-        if hasattr(self.call_logic, "sync_buffer"):
-            for client_ip, timestamps in list(self.call_logic.sync_buffer.items()):
-                if panel_idx >= len(self.video_panels):
-                    break
+        connected_clients = []
+        if hasattr(self.call_logic, "open_clients"):
+            for client_ip in self.call_logic.open_clients.keys():
+                # skip self if it appears there
+                if hasattr(self.call_logic, "ip") and client_ip == self.call_logic.ip:
+                    continue
+                connected_clients.append(client_ip)
 
-                frame_displayed = False
+        for client_ip in connected_clients:
+            if panel_idx >= len(self.video_panels):
+                break
 
-                if timestamps:
-                    latest_ts = max(timestamps.keys())
-                    data = timestamps[latest_ts]
+            if client_ip in self.remote_frames and self.remote_frames[client_ip] is not None:
+                self._display_frame(panel_idx, self.remote_frames[client_ip])
+            else:
+                # connected but no video yet
+                self._display_black(panel_idx)
 
-                    if data.get("video") is not None:
-                        self._display_frame(panel_idx, data["video"])
-                        frame_displayed = True
+            panel_idx += 1
 
-                if not frame_displayed:
-                    # client exists but no video yet
-                    self._display_black(panel_idx)
-
-                panel_idx += 1
-
-        # remaining slots = no connected client
+        # -----------------
+        # remaining panels = nobody connected there
+        # make them empty
+        # -----------------
         for i in range(panel_idx, len(self.video_panels)):
             self.video_panels[i].SetBitmap(wx.NullBitmap)
 
