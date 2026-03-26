@@ -69,14 +69,6 @@ class Host:
         self.mic.start()
         self.mic.unmute()
         threading.Thread(target=self.receive_video_loop, daemon=True).start()
-
-        # Start communication threads (assuming they have start() method)
-        # threading.Thread(
-        #     target=self.handle_msgs,
-        #     daemon=True
-        # ).start()
-        # threading.Thread(target=self.playback_loop, daemon=True).start()
-        # TODO GUI
         # start meeting
         try:
             while True:
