@@ -136,7 +136,7 @@ class Host:
         while self.running:
             while not self.video_comm.frameQ.empty():
                 frame, timestamp, addr = self.video_comm.frameQ.get()
-                print(self.video_comm.frameQ)
+                print(frame, timestamp, addr)
 
                 client_ip = addr[0]
                 timestamp = timestamp - self.meeting_start_time
@@ -151,7 +151,7 @@ class Host:
         while self.running:
             while not self.audio_comm.audio_queue.empty():
                 audio_bytes, timestamp, sender_ip = self.audio_comm.audio_queue.get()
-                print(self.audio_comm.audio_queue)
+                print(audio_bytes, timestamp, sender_ip)
 
                 client_ip = sender_ip
                 timestamp -= self.meeting_start_time
