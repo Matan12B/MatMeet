@@ -43,7 +43,7 @@ class Host:
         self.camera = CameraControl(jpeg_quality=5)
         self.mic = Microphone(50)
         self.AudioOutput = AudioOutput()
-        self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 20]
+        self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 5]
 
         # client_ip -> { sync_ts -> {"audio": ..., "video": ...} }
         self.sync_buffer = {}

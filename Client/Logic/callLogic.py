@@ -39,7 +39,7 @@ class CallLogic:
         self.camera = CameraControl(width=359, height=270, jpeg_quality=5)
         self.mic = Microphone(50)
         self.AudioOutput = AudioOutput()
-        self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 20]
+        self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 5]
         # Buffers
         self.sync_buffer = {}
         self.send_queue = queue.Queue()
