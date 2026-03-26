@@ -263,7 +263,9 @@ class Host:
         print("adding", ip, "to open clients")
         self.open_clients[ip] = [None,port]
         time.sleep(0.1)
-        while self.open_clients[ip][0] is not None:
+        print(self.open_clients)
+        print(ip)
+        while self.open_clients[ip][0] is None:
             time.sleep(0.01)
         self.send_meeting_start_time(ip)
 

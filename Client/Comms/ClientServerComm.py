@@ -33,6 +33,8 @@ class ClientServer:
                         self.open_clients[addr[0]] = [None, None]
                     self.open_clients[addr[0]][0] = client_socket
                     self.open_clients_soc_ip[client_socket] = addr[0]
+                    print(self.open_clients)
+
                 else:
                     if current_socket in self.open_clients_soc_ip.keys():
                         decrypt_msg = ""
