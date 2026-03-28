@@ -46,12 +46,10 @@ class CallLogic:
         }
 
         self.camera = CameraControl(jpeg_quality=5)
-        self.mic = Microphone(50, rate=16000, channels=1, chunk=320)
-        self.AudioOutput = AudioOutput(rate=16000, channels=1)
         self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 5]
-
-        self.av_sync = AVSyncManager(playout_delay=0.12)
-
+        self.mic = Microphone(50, rate=16000, channels=1, chunk=160)
+        self.AudioOutput = AudioOutput(rate=16000, channels=1)
+        self.av_sync = AVSyncManager(playout_delay=0.04)
         self.meeting_start_time = None
         self.running = True
         self.send_queue = queue.Queue(maxsize=1)
@@ -101,9 +99,7 @@ class CallLogic:
                         self.send_queue.put_nowait((frame, timestamp))
                     except queue.Full:
                         pass
-
-                time.sleep(0.01)
-
+                time.sleep(0.002)
         except Exception as e:
             print("guest start loop error:", e)
         finally:
@@ -180,17 +176,13 @@ class CallLogic:
                         audio_bytes, timestamp, sender_ip = self.audio_comm.audio_queue.get_nowait()
                     except queue.Empty:
                         break
-
                     if sender_ip not in self.open_clients:
                         self.open_clients[sender_ip] = self.open_clients.get(self.host_ip, 0)
-
                     self.av_sync.add_audio(sender_ip, float(timestamp), audio_bytes)
-
-                time.sleep(0.005)
-
+                time.sleep(0.001)
             except Exception as e:
                 print("receive_audio_loop error:", e)
-                time.sleep(0.05)
+                time.sleep(0.01)
 
     def playback_loop(self):
         while self.running:
@@ -206,7 +198,7 @@ class CallLogic:
                     if frame is not None:
                         self.latest_remote_frames[sender_ip] = frame
 
-                        while self.remote_video_queue.qsize() >= 5:
+                        while self.remote_video_queue.qsize() >= 3:
                             try:
                                 self.remote_video_queue.get_nowait()
                             except queue.Empty:
@@ -217,7 +209,7 @@ class CallLogic:
                 except Exception as e:
                     print("guest playback_loop error:", e)
 
-            time.sleep(0.005)
+            time.sleep(0.001)
 
     def handle_msgs_from_client_logic(self, opcode, data):
         try:

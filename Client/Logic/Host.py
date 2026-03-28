@@ -42,12 +42,10 @@ class Host:
         }
 
         self.camera = CameraControl(jpeg_quality=5)
-        self.mic = Microphone(50, rate=16000, channels=1, chunk=320)
+        self.mic = Microphone(50, rate=16000, channels=1, chunk=160)
+        self.av_sync = AVSyncManager(playout_delay=0.04)
         self.AudioOutput = AudioOutput(rate=16000, channels=1)
         self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 5]
-
-        self.av_sync = AVSyncManager(playout_delay=0.12)
-
         self.meeting_start_time = None
         self.running = True
 
@@ -86,7 +84,7 @@ class Host:
                         frame_data = clientProtocol.build_video_msg(timestamp, frame_bytes)
                         self.video_comm.send_frame(frame_data)
 
-                time.sleep(0.01)
+                time.sleep(0.002)
 
         except KeyboardInterrupt:
             print("Call interrupted.")
@@ -135,11 +133,15 @@ class Host:
                     except Exception as e:
                         print("audio relay error:", e)
 
-                time.sleep(0.005)
+                    # TEMP DEBUG:
+                    # uncomment this line once just to verify host output device works
+                    # self.AudioOutput.play_bytes(audio_bytes)
+
+                time.sleep(0.001)
 
             except Exception as e:
                 print("receive_audio_loop error:", e)
-                time.sleep(0.05)
+                time.sleep(0.01)
 
     def host_audio_send_loop(self):
         while self.running:
@@ -174,7 +176,7 @@ class Host:
                     if frame is not None:
                         self.latest_remote_frames[client_ip] = frame
 
-                        while self.remote_video_queue.qsize() >= 5:
+                        while self.remote_video_queue.qsize() >= 3:
                             try:
                                 self.remote_video_queue.get_nowait()
                             except queue.Empty:
@@ -185,7 +187,7 @@ class Host:
                 except Exception as e:
                     print("playback_loop error:", e)
 
-            time.sleep(0.005)
+            time.sleep(0.001)
 
     def handle_msgs_from_client_logic(self, opcode, data):
         try:

@@ -1,11 +1,12 @@
 # av_sync.py
+# lower the fixed jitter buffer for LAN
 
 import time
 import heapq
 
 
 class AVSyncManager:
-    def __init__(self, playout_delay=0.12):
+    def __init__(self, playout_delay=0.04):
         self.playout_delay = playout_delay
         self.states = {}
 
@@ -15,8 +16,8 @@ class AVSyncManager:
             self.states[sender_ip] = {
                 "first_sender_ts": float(sender_ts),
                 "playout_base": now + self.playout_delay,
-                "audio_heap": [],   # (target_time, sender_ts, audio_bytes)
-                "video_heap": [],   # (target_time, sender_ts, frame)
+                "audio_heap": [],
+                "video_heap": [],
                 "last_video_frame": None
             }
         return self.states[sender_ip]
