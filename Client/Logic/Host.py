@@ -368,7 +368,6 @@ class Host:
         try:
             if hasattr(self, 'mic'):
                 self.mic.stop()
-                self.mic.close()
         except Exception as e:
             print("mic stop error:", e)
 

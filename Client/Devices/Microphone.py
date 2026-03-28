@@ -77,6 +77,3 @@ class Microphone:
     def mute(self):
         self.is_muted = True
         print("Microphone is muted.")
-
-    def close(self):
-        self.stop()
