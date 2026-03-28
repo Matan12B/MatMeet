@@ -52,7 +52,7 @@ class CallLogic:
 
         self.camera = CameraControl(jpeg_quality=5)
         self.mic = Microphone(50)
-        self.AudioOutput = AudioOutput()
+        self.AudioOutput = AudioOutput(rate=16000, channels=1)
         self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 5]
 
         self.sync_buffer = {}
