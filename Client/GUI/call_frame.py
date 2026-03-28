@@ -68,7 +68,6 @@ class CallFrame(wx.Frame):
         # otherwise black
         # -----------------
         newest_self_frame = None
-
         if hasattr(self.call_logic, "UI_queue"):
             while True:
                 try:

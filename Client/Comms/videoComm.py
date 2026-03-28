@@ -7,6 +7,7 @@ import numpy as np
 from Common.Cipher import AESCipher
 from Client.Devices.Camera import CameraControl
 from Client.Protocol import clientProtocol
+from Client.Logic import frameAssembler
 
 class VideoComm:
     def __init__(self, AES, open_clients):
@@ -37,6 +38,7 @@ class VideoComm:
                 # Decode JPEG bytes back to NumPy array
                 # header is opcode, timestamp
                 frame_data, header = clientProtocol.unpack_file(decrypted_data)
+
                 np_arr = np.frombuffer(frame_data, np.uint8)
                 frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                 timestamp = float(header[1])
@@ -57,7 +59,6 @@ class VideoComm:
             return
         encrypted = self.AES.encrypt_file(frame_data)
         for ip in self.open_clients:
-            print(f"sending frame of size {len(encrypted)}")
             self.udp_socket.sendto(encrypted, (ip, self.port))
 
     def add_user(self, user_ip, user_port):
