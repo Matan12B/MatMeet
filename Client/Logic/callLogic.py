@@ -35,14 +35,16 @@ class CallLogic:
         self.ip = "10.0.0.13"
 
         # GUI queues
-        self.UI_queue = queue.Queue()            # self preview
-        self.remote_video_queue = queue.Queue()  # remote frames for GUI
+        self.UI_queue = queue.Queue()
+        self.remote_video_queue = queue.Queue()
 
         # latest frames by client
         self.latest_remote_frames = {}
 
+        # restored commands table
         self.commands = {
             "ha": self.handle_audio,
+            "hv": self.handle_video_msg,   # legacy/support path
             "hj": self.handle_join,
             "hd": self.handle_disconnect,
             "gmst": self.get_meeting_start_time
@@ -53,7 +55,6 @@ class CallLogic:
         self.AudioOutput = AudioOutput()
         self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 5]
 
-        # optional storage if you still want timestamps/debug
         self.sync_buffer = {}
 
         self.meeting_start_time = None
@@ -74,6 +75,8 @@ class CallLogic:
         threading.Thread(target=self.receive_video_loop, daemon=True).start()
         threading.Thread(target=self.send_loop, daemon=True).start()
         threading.Thread(target=self.audio_send_loop, daemon=True).start()
+        threading.Thread(target=self.receive_audio_loop, daemon=True).start()
+        threading.Thread(target=self.audio_play_loop, daemon=True).start()
 
         try:
             while self.running:
@@ -90,6 +93,7 @@ class CallLogic:
                         self.UI_queue.get_nowait()
                     except queue.Empty:
                         break
+
                 self.UI_queue.put(frame)
 
                 if self.meeting_start_time is not None:
@@ -113,24 +117,24 @@ class CallLogic:
         finally:
             self.cleanup()
 
-def send_loop(self):
-    while self.running:
-        try:
-            frame, timestamp = self.send_queue.get(timeout=1)
+    def send_loop(self):
+        while self.running:
+            try:
+                frame, timestamp = self.send_queue.get(timeout=1)
 
-            ok, encoded = cv2.imencode('.jpg', frame, self.encode_params)
-            if not ok:
+                ok, encoded = cv2.imencode(".jpg", frame, self.encode_params)
+                if not ok:
+                    continue
+
+                frame_bytes = encoded.tobytes()
+                frame_data = clientProtocol.build_video_msg(timestamp, frame_bytes)
+                self.video_comm.send_frame(frame_data)
+
+            except queue.Empty:
                 continue
-
-            frame_bytes = encoded.tobytes()
-            frame_data = clientProtocol.build_video_msg(timestamp, frame_bytes)
-            self.video_comm.send_frame(frame_data)
-
-        except queue.Empty:
-            continue
-        except Exception as e:
-            print("send_loop error:", e)
-            time.sleep(0.02)
+            except Exception as e:
+                print("send_loop error:", e)
+                time.sleep(0.02)
 
     def audio_send_loop(self):
         while self.running:
@@ -154,7 +158,6 @@ def send_loop(self):
     def receive_video_loop(self):
         """
         Receive remote video and push it directly to GUI queue.
-        No timed playback gating for video.
         """
         while self.running:
             try:
@@ -185,13 +188,12 @@ def send_loop(self):
                     if frame is None:
                         continue
 
-                    # keep latest for this client
                     self.latest_remote_frames[client_ip] = frame
 
-                    # optional debug/timestamp storage
                     try:
                         if client_ip not in self.sync_buffer:
                             self.sync_buffer[client_ip] = {}
+
                         self.sync_buffer[client_ip][float(timestamp)] = {
                             "video": frame,
                             "audio": None
@@ -200,7 +202,6 @@ def send_loop(self):
                     except Exception:
                         pass
 
-                    # push immediately to GUI
                     while self.remote_video_queue.qsize() >= 5:
                         try:
                             self.remote_video_queue.get_nowait()
@@ -232,10 +233,10 @@ def send_loop(self):
                     if client_ip not in self.open_clients:
                         self.open_clients[client_ip] = self.open_clients.get(self.host_ip, 0)
 
-                    # optional storage/debug
                     try:
                         if client_ip not in self.sync_buffer:
                             self.sync_buffer[client_ip] = {}
+
                         self.sync_buffer[client_ip][float(timestamp)] = {
                             "video": None,
                             "audio": audio_bytes
@@ -260,7 +261,7 @@ def send_loop(self):
 
     def audio_play_loop(self):
         """
-        Play audio in a separate thread so it won't block video handling.
+        Play audio in a separate thread.
         """
         while self.running:
             try:
@@ -331,6 +332,22 @@ def send_loop(self):
         except Exception as e:
             print("meeting start time parse error:", e)
 
+    def handle_video_msg(self, data):
+        """
+        Legacy support in case video ever comes through self.commands.
+        Expected data like [client_ip, username, timestamp, frame]
+        """
+        try:
+            client_ip = data[0]
+            username = data[1]
+            timestamp = data[2]
+            frame = data[3]
+        except Exception as e:
+            print("video msg parse error:", e)
+            return
+
+        self.handle_video(client_ip, username, timestamp, frame)
+
     def handle_video(self, client_ip, username, timestamp, frame):
         self.latest_remote_frames[client_ip] = frame
 
@@ -348,7 +365,8 @@ def send_loop(self):
             username = data[1]
             timestamp = data[2]
             audio = data[3]
-        except Exception:
+        except Exception as e:
+            print("audio msg parse error:", e)
             return
 
         while self.audio_play_queue.qsize() >= 10:
@@ -405,38 +423,38 @@ def send_loop(self):
         self.running = False
 
         try:
-            if hasattr(self, 'camera'):
+            if hasattr(self, "camera"):
                 self.camera.stop()
         except Exception as e:
             print("camera stop error:", e)
 
         try:
-            if hasattr(self, 'mic'):
+            if hasattr(self, "mic"):
                 self.mic.stop()
         except Exception as e:
             print("mic stop error:", e)
 
         try:
-            if hasattr(self, 'AudioOutput'):
+            if hasattr(self, "AudioOutput"):
                 self.AudioOutput.stop()
         except Exception as e:
             print("audio output stop error:", e)
 
         try:
-            if hasattr(self, 'video_comm'):
+            if hasattr(self, "video_comm"):
                 self.video_comm.close()
         except Exception as e:
             print("video close error:", e)
 
         try:
-            if hasattr(self, 'audio_comm') and hasattr(self.audio_comm, 'close'):
-                self.audio_comm.close()
+            if hasattr(self, "audio_comm") and hasattr(self.audio_comm, "close_client"):
+                self.audio_comm.close_client()
         except Exception as e:
             print("audio close error:", e)
 
         try:
-            if hasattr(self, 'comm_with_host') and hasattr(self.comm_with_host, 'close'):
-                self.comm_with_host.close()
+            if hasattr(self, "comm_with_host") and hasattr(self.comm_with_host, "close_client"):
+                self.comm_with_host.close_client()
         except Exception as e:
             print("host comm close error:", e)
 
