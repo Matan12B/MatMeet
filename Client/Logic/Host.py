@@ -18,11 +18,12 @@ from Client.Logic.av_sync import AVSyncManager
 
 
 class Host:
-    def __init__(self, port, meeting_key, comm):
+    def __init__(self, port, meeting_key, comm, meeting_code):
         self.open_clients = {}   # ip -> [socket, port]
         self.msgQ = queue.Queue()
         self.host_comm = comm
         self.AES = AESCipher(meeting_key)
+        self.meeting_code = meeting_code
 
         self.host_server = ClientServer(port, self.msgQ, self.open_clients, self.AES)
         self.audio_comm = AudioServer(AES=self.AES, open_clients=self.open_clients)
@@ -279,7 +280,8 @@ class Host:
     def close(self):
         if not self.running:
             return
-
+        msg2server = clientProtocol.build_leave_meeting(self.meeting_code)
+        self.host_comm.send_msg(msg2server)
         print("Closing call...")
         self.running = False
 

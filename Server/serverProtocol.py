@@ -55,5 +55,13 @@ def build_client_joined(ip, port, shared_key):
     """
     return f"hj^#^{ip}^#^{port}^#^{shared_key}"
 
+def build_meeting_closed():
+    """
+
+    :param meeting_code:
+    :return:
+    """
+    return f"fd^#^"
+
 
 

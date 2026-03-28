@@ -57,6 +57,8 @@ def build_kick_msg():
     Return a kick msg build in the protocol structure
     """
 
+    return f"fd^#^"
+
 def build_video_msg(timestamp, frame):
     """
     Return an video  msg build in the protocol structure
@@ -86,20 +88,23 @@ def build_toggle_camera():
     Return a register msg build in the protocol structure
     """
 
-def build_leave_meeting():
+def build_leave_meeting(meeting_code):
     """
     Return a register msg build in the protocol structure
     """
+    return f"hd^#^{meeting_code}"
 
 def build_open_meeting_msg():
     """
     Return a register msg build in the protocol structure
     """
     return "om"
+
 def build_username_msg(username):
     """
     Return a register msg build in the protocol structure
     """
+
 def build_meeting_start_time(meeting_start):
     """
     build meeting start time to send to guests

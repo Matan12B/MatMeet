@@ -28,7 +28,7 @@ class Server:
             "om": self.open_meeting,
             "jm": self.join_meeting,
             "cm": self.close_meeting,
-            "dc": self.handle_disconnect
+            "hd": self.handle_disconnect
         }
 
     def start(self):
@@ -129,14 +129,13 @@ class Server:
             msg = serverProtocol.build_error("Meeting not found")
             self.comm.send_msg(ip, msg)
 
-    def close_meeting(self, ip, data):
+    def close_meeting(self, ip, meeting_id):
         """
         Close a meeting (host only)
         :param ip: Client IP address
         :param data: meeting_id
         """
-        meeting_id = data
-        if meeting_id in self.meetings:
+        if meeting_id in self.meetings.keys():
             # Notify all participants
             for client_ip in self.meetings[meeting_id][1]:
                 msg = serverProtocol.build_meeting_closed()
@@ -156,7 +155,9 @@ class Server:
         :param ip: Client IP address
         :param data: Additional data (optional)
         """
-        if ip in self.open_clients:
+        if data in self.meetings.keys() and self.meetings[data][2][3] == ip:
+            self.close_meeting(ip, data)
+        elif ip in self.open_clients:
             username = self.open_clients[ip][0]
             meeting_id = self.open_clients[ip][1]
 
@@ -177,6 +178,8 @@ class Server:
             # Remove client
             del self.open_clients[ip]
             print(f"Client disconnected: {username} ({ip})")
+        else:
+            print("ip or meeting code are incorrect")
 
     def handle_msgs(self):
         """

@@ -17,12 +17,12 @@ from Client.Logic.av_sync import AVSyncManager
 
 
 class CallLogic:
-    def __init__(self, port, meeting_key, comm, host_ip):
+    def __init__(self, port, meeting_key, comm, host_ip, meeting_code):
         self.open_clients = {}   # ip -> port
         self.msgs_from_host = queue.Queue()
         self.comm_with_server = comm
         self.AES = AESCipher(meeting_key)
-
+        self.meeting_code = meeting_code
         self.comm_with_host = ClientComm(host_ip, port, self.msgs_from_host, self.AES)
         self.video_comm = VideoComm(self.AES, self.open_clients)
         self.audio_comm = AudioClient(host_ip, self.AES)
@@ -41,7 +41,8 @@ class CallLogic:
             "hv": self.handle_video_msg,
             "hj": self.handle_join,
             "hd": self.handle_disconnect,
-            "gmst": self.get_meeting_start_time
+            "gmst": self.get_meeting_start_time,
+            "fd": self.force_disconnect
         }
 
         self.camera = CameraControl(jpeg_quality=5)
@@ -293,6 +294,12 @@ class CallLogic:
 
         print(f"{ip} joined the call")
         self.open_clients[ip] = port
+    def force_disconnect(self):
+        """
+        if server says to disconnect, disconnect client
+        :return:
+        """
+        self.leave_call()
 
     def handle_disconnect(self, data):
         try:
