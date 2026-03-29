@@ -32,8 +32,6 @@ class VideoPanel(wx.Panel):
     def set_frame(self, frame):
         """
         Receive OpenCV frame and convert it to wx.Bitmap.
-        :param frame:
-        :return:
         """
         if frame is None:
             return
@@ -51,7 +49,6 @@ class VideoPanel(wx.Panel):
     def set_black(self):
         """
         Show black panel.
-        :return:
         """
         self.current_bitmap = None
         self.show_black = True
@@ -60,7 +57,6 @@ class VideoPanel(wx.Panel):
     def clear_panel(self):
         """
         Show empty panel.
-        :return:
         """
         self.current_bitmap = None
         self.show_black = False
@@ -69,8 +65,6 @@ class VideoPanel(wx.Panel):
     def on_paint(self, event):
         """
         Draw current frame / black / empty state.
-        :param event:
-        :return:
         """
         dc = wx.AutoBufferedPaintDC(self)
         width, height = self.GetClientSize()
@@ -92,10 +86,11 @@ class VideoPanel(wx.Panel):
 
 
 class CallFrame(wx.Frame):
-    def __init__(self, call_logic):
+    def __init__(self, call_logic, home_frame=None):
         super().__init__(None, title="Meeting", size=wx.Size(1024, 768))
 
         self.call_logic = call_logic
+        self.home_frame = home_frame
 
         self.camera_width = 478
         self.camera_height = 359
@@ -111,6 +106,35 @@ class CallFrame(wx.Frame):
 
         self.panel = wx.Panel(self)
         main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        # display meeting code
+        self.meeting_code = getattr(self.call_logic, "meeting_code", "")
+
+        meeting_bar = wx.BoxSizer(wx.HORIZONTAL)
+
+        meeting_title = wx.StaticText(self.panel, label="Meeting Code:")
+        title_font = meeting_title.GetFont()
+        title_font.SetWeight(wx.FONTWEIGHT_BOLD)
+        meeting_title.SetFont(title_font)
+
+        self.meeting_code_text = wx.StaticText(
+            self.panel,
+            label=self.meeting_code if self.meeting_code else "N/A"
+        )
+
+        code_font = self.meeting_code_text.GetFont()
+        code_font.PointSize += 2
+        code_font.SetWeight(wx.FONTWEIGHT_BOLD)
+        self.meeting_code_text.SetFont(code_font)
+
+        self.copy_code_btn = wx.Button(self.panel, label="Copy Code")
+
+        meeting_bar.Add(meeting_title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        meeting_bar.Add(self.meeting_code_text, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        meeting_bar.AddStretchSpacer()
+        meeting_bar.Add(self.copy_code_btn, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        main_sizer.Add(meeting_bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
 
         self.video_grid = wx.GridSizer(2, 2, 5, 5)
         self.video_panels = []
@@ -144,7 +168,7 @@ class CallFrame(wx.Frame):
         self.mic_btn.Bind(wx.EVT_BUTTON, self.toggle_mic)
         self.cam_btn.Bind(wx.EVT_BUTTON, self.toggle_camera)
         self.Bind(wx.EVT_CLOSE, self.on_close)
-
+        self.copy_code_btn.Bind(wx.EVT_BUTTON, self.copy_meeting_code)
         self.video_panels[0].set_black()
         for i in range(1, 4):
             self.video_panels[i].clear_panel()
@@ -158,8 +182,6 @@ class CallFrame(wx.Frame):
     def update_frames(self, event):
         """
         Update self panel and remote panels.
-        :param event:
-        :return:
         """
         if self.is_closing:
             return
@@ -171,7 +193,6 @@ class CallFrame(wx.Frame):
     def _update_self_frame(self):
         """
         Pull newest self frame from call logic.
-        :return:
         """
         newest_self_frame = None
 
@@ -196,7 +217,6 @@ class CallFrame(wx.Frame):
     def _update_remote_frames_from_queue(self):
         """
         Pull remote frames from queue.
-        :return:
         """
         if not hasattr(self.call_logic, "remote_video_queue"):
             return
@@ -215,11 +235,7 @@ class CallFrame(wx.Frame):
 
     def _draw_remote_panels(self):
         """
-        Draw remote users:
-        - connected + fresh frame = show frame
-        - connected + stale/no frame = black
-        - no connected user in slot = empty
-        :return:
+        Draw remote users.
         """
         connected_clients = self._get_connected_remote_clients()
         panel_idx = 1
@@ -245,7 +261,6 @@ class CallFrame(wx.Frame):
     def _get_connected_remote_clients(self):
         """
         Return connected clients except self.
-        :return:
         """
         connected_clients = []
 
@@ -265,8 +280,6 @@ class CallFrame(wx.Frame):
     def toggle_mic(self, event):
         """
         Toggle microphone.
-        :param event:
-        :return:
         """
         try:
             if not hasattr(self.call_logic, "mic"):
@@ -286,8 +299,6 @@ class CallFrame(wx.Frame):
     def toggle_camera(self, event):
         """
         Toggle camera.
-        :param event:
-        :return:
         """
         try:
             if not hasattr(self.call_logic, "camera"):
@@ -309,23 +320,18 @@ class CallFrame(wx.Frame):
     def leave_call(self, event):
         """
         Leave call from button.
-        :param event:
-        :return:
         """
         self._shutdown()
 
     def on_close(self, event):
         """
         Handle window close.
-        :param event:
-        :return:
         """
         self._shutdown()
 
     def _shutdown(self):
         """
-        Close frame safely.
-        :return:
+        Close frame safely and return to HomeFrame.
         """
         if self.is_closing:
             return
@@ -347,6 +353,25 @@ class CallFrame(wx.Frame):
             print("close error:", e)
 
         try:
+            if self.home_frame:
+                if hasattr(self.home_frame.client, 'role'):
+                    self.home_frame.client.role = None
+                self.home_frame.Show()
+
             self.Destroy()
         except Exception as e:
             print("destroy error:", e)
+
+    def copy_meeting_code(self, event):
+        code = getattr(self.call_logic, "meeting_code", "")
+
+        if not code:
+            wx.MessageBox("No meeting code available", "Meeting Code")
+            return
+
+        if wx.TheClipboard.Open():
+            wx.TheClipboard.SetData(wx.TextDataObject(code))
+            wx.TheClipboard.Close()
+            wx.MessageBox("Meeting code copied", "Meeting Code")
+        else:
+            wx.MessageBox("Could not open clipboard", "Meeting Code")

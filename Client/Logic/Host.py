@@ -45,9 +45,19 @@ class Host:
         self.mic = Microphone(50, rate=16000, channels=1, chunk=160)
         self.av_sync = AVSyncManager(playout_delay=0.04)
         self.AudioOutput = AudioOutput(rate=16000, channels=1)
-        self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+
+        # lower bitrate a lot
+        self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 45]
+
+        # explicit video send throttle
+        self.video_send_interval = 1 / 20.0  # 20 FPS
+        self.last_video_send_time = 0.0
+
         self.meeting_start_time = None
         self.running = True
+
+    # Host.py
+    # replace start() with this
 
     def start(self):
         print("Starting call...")
@@ -66,9 +76,9 @@ class Host:
 
         try:
             while self.running:
-                timestamp = time.time() - self.meeting_start_time
-
+                now = time.time()
                 frame = self.camera.get_frame()
+
                 if frame is not None:
                     while self.UI_queue.qsize() >= 1:
                         try:
@@ -78,13 +88,18 @@ class Host:
 
                     self.UI_queue.put(frame.copy())
 
-                    ok, encoded = cv2.imencode(".jpg", frame, self.encode_params)
-                    if ok:
-                        frame_bytes = encoded.tobytes()
-                        frame_data = clientProtocol.build_video_msg(timestamp, frame_bytes)
-                        self.video_comm.send_frame(frame_data)
+                    # send only at controlled FPS
+                    if now - self.last_video_send_time >= self.video_send_interval:
+                        self.last_video_send_time = now
+                        timestamp = now - self.meeting_start_time
 
-                time.sleep(0.002)
+                        ok, encoded = cv2.imencode(".jpg", frame, self.encode_params)
+                        if ok:
+                            frame_bytes = encoded.tobytes()
+                            frame_data = clientProtocol.build_video_msg(timestamp, frame_bytes)
+                            self.video_comm.send_frame(frame_data)
+
+                time.sleep(0.005)
 
         except KeyboardInterrupt:
             print("Call interrupted.")
@@ -255,6 +270,9 @@ class Host:
     def handle_join(self, data):
         ip = data[0]
         port = int(data[1])
+
+        if ip == self.ip:
+            return
 
         if ip not in self.open_clients:
             self.open_clients[ip] = [None, port]

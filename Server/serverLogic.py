@@ -104,26 +104,29 @@ class Server:
     def join_meeting(self, ip, data):
         meeting_id = data
         if meeting_id in self.meetings:
-            meeting_port = self.meetings[meeting_id][0]  # int
-            shared_key = self.meetings[meeting_id][1]  # str
+
             self.meetings[meeting_id][2].append(ip)  # append to client IP list
+            meeting_port = self.meetings[meeting_id][0]
+            shared_key = self.meetings[meeting_id][1]
+            participants = self.meetings[meeting_id][2]
+            host_ip = self.meetings[meeting_id][3]
+
+            existing_clients = list(participants)
+            participants.append(ip)
 
             if ip in self.open_clients:
                 self.open_clients[ip][1] = meeting_id
 
-            # Get other clients
-            other_clients = [client for client in self.meetings[meeting_id][2] if client != ip]
-
             print(f"Client {ip} joined meeting {meeting_id}")
 
             # Send success message to new client
-            msg = serverProtocol.build_give_role("guest", meeting_port, shared_key, self.meetings[meeting_id][3])
-            self.comm.send_msg(ip, msg)
+            notify_new_guest  = serverProtocol.build_give_role("guest", meeting_port, shared_key, self.meetings[meeting_id][3])
+            self.comm.send_msg(ip, notify_new_guest )
 
             # Notify other clients
-            for client_ip in other_clients:
-                notify_msg = serverProtocol.build_client_joined(ip, meeting_port, shared_key)
-                self.comm.send_msg(client_ip, notify_msg)
+            for other_ip in existing_clients:
+                notify_existing = serverProtocol.build_client_joined(ip, meeting_port, shared_key)
+                self.comm.send_msg(other_ip, notify_existing)
         else:
             print(f"Meeting {meeting_id} not found for client {ip}")
             msg = serverProtocol.build_error("Meeting not found")

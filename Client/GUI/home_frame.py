@@ -1,5 +1,4 @@
 import time
-
 import wx
 from call_frame import CallFrame
 
@@ -7,7 +6,7 @@ from call_frame import CallFrame
 class HomeFrame(wx.Frame):
 
     def __init__(self, client):
-        super().__init__(None, title="Python Zoom", size=(400,300))
+        super().__init__(None, title="Python Zoom", size=(400, 300))
         self.client = client
         self.client.start()
 
@@ -34,14 +33,12 @@ class HomeFrame(wx.Frame):
         self.start_btn.Bind(wx.EVT_BUTTON, self.start_meeting)
         self.join_btn.Bind(wx.EVT_BUTTON, self.join_meeting)
 
-
     def start_meeting(self, event):
         # Request server to create a meeting
         self.client.start_meeting()
 
         # Wait briefly for meeting code
         wx.CallLater(500, self._open_call_frame)
-
 
     def join_meeting(self, event):
         code = self.code_box.GetValue()
@@ -51,7 +48,6 @@ class HomeFrame(wx.Frame):
             return
 
         # Request to join meeting
-        # todo if isinstance(client, callLogic)
         self.client.request_join_meeting(code)
 
         # Wait briefly for server response
@@ -62,7 +58,8 @@ class HomeFrame(wx.Frame):
         while self.client.role is None:
             time.sleep(0.02)
             continue
+
         if self.client.role:
-            call = CallFrame(self.client.role)
+            call = CallFrame(self.client.role, home_frame=self)
             call.Show()
-            self.Close()
+            self.Hide()

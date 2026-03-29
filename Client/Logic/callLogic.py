@@ -46,13 +46,24 @@ class CallLogic:
         }
 
         self.camera = CameraControl(jpeg_quality=5)
-        self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+
+        # lower bitrate
+        self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 45]
+
         self.mic = Microphone(50, rate=16000, channels=1, chunk=160)
         self.AudioOutput = AudioOutput(rate=16000, channels=1)
         self.av_sync = AVSyncManager(playout_delay=0.04)
+
+        # explicit video send throttle
+        self.video_send_interval = 1 / 20.0  # 20 FPS
+        self.last_video_enqueue_time = 0.0
+
         self.meeting_start_time = None
         self.running = True
         self.send_queue = queue.Queue(maxsize=1)
+
+    # callLogic.py
+    # replace start() with this
 
     def start(self):
         print("Starting guest call...")
@@ -70,6 +81,7 @@ class CallLogic:
 
         try:
             while self.running:
+                now = time.time()
                 frame = self.camera.get_frame()
 
                 if frame is None:
@@ -87,19 +99,24 @@ class CallLogic:
                 self.UI_queue.put(frame)
 
                 if self.meeting_start_time is not None:
-                    timestamp = time.time() - self.meeting_start_time
+                    # enqueue only at controlled FPS
+                    if now - self.last_video_enqueue_time >= self.video_send_interval:
+                        self.last_video_enqueue_time = now
+                        timestamp = now - self.meeting_start_time
 
-                    if self.send_queue.full():
+                        if self.send_queue.full():
+                            try:
+                                self.send_queue.get_nowait()
+                            except queue.Empty:
+                                pass
+
                         try:
-                            self.send_queue.get_nowait()
-                        except queue.Empty:
+                            self.send_queue.put_nowait((frame, timestamp))
+                        except queue.Full:
                             pass
 
-                    try:
-                        self.send_queue.put_nowait((frame, timestamp))
-                    except queue.Full:
-                        pass
-                time.sleep(0.002)
+                time.sleep(0.005)
+
         except Exception as e:
             print("guest start loop error:", e)
         finally:
@@ -283,9 +300,11 @@ class CallLogic:
         except Exception as e:
             print("join parse error:", e)
             return
-
         print(f"{ip} joined the call")
+        if ip == self.ip:
+            return
         self.open_clients[ip] = port
+
     def force_disconnect(self):
         """
         if server says to disconnect, disconnect client
