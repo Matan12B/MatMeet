@@ -32,6 +32,7 @@ class CallLogic:
 
         hostname = socket.gethostname()
         self.ip = socket.gethostbyname(hostname)
+        print("my ip is", self.ip)
         self.UI_queue = queue.Queue()
         self.remote_video_queue = queue.Queue()
         self.latest_remote_frames = {}
