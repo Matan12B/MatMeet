@@ -53,7 +53,7 @@ class Client:
 
     def get_meeting_code(self, meeting_code):
         """
-        Receive meeting code from the server
+        Receive meeting code from the server for host
         """
         self.meeting_code = meeting_code
 

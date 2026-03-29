@@ -274,12 +274,20 @@ class Host:
 
         if self.running and ip in self.open_clients:
             self.send_meeting_start_time(ip)
+            self.send_username(ip, self.host_comm.username)
 
     def send_meeting_start_time(self, ip):
         """
         send relative time to all guests for av sync
         """
         msg = clientProtocol.build_meeting_start_time(self.meeting_start_time)
+        self.host_server.send_msg(ip, msg)
+
+    def send_username(self, ip, username):
+        """
+        send host username
+        """
+        msg = clientProtocol.build_username_msg(username)
         self.host_server.send_msg(ip, msg)
 
     def leave_call(self):

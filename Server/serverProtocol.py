@@ -1,12 +1,12 @@
 
 def unpack(msg):
     """
-    Return list of parameters from the msg
+    Return opcode and list of parameters from the msg
     """
     split = msg.split("^#^")
-    if len(split) > 2:
-        return [split[0], split[1:]]
-    return split
+    opcode = split[0]
+    data = split[1:]
+    return opcode, data
 
 def build_login_status(status):
     """
@@ -69,6 +69,12 @@ def build_error(error):
     return error msg
     """
     return f"ge^#^{error}"
+
+def build_client_connected(existing_clients):
+    """
+    build a message to send to a new client with all the currently connected clients to a meeting
+    """
+    return f"cc^#^{existing_clients}"
 
 
 

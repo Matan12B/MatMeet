@@ -52,7 +52,7 @@ def get_fallback_ip(host_ip):
 
 class CallLogic:
     def __init__(self, port, meeting_key, comm, host_ip, meeting_code):
-        self.open_clients = {}   # ip -> port
+        self.open_clients = {}   # ip -> port, username
         self.msgs_from_host = queue.Queue()
         self.comm_with_server = comm
         self.AES = AESCipher(meeting_key)
@@ -60,8 +60,7 @@ class CallLogic:
         self.comm_with_host = ClientComm(host_ip, port, self.msgs_from_host, self.AES)
         self.video_comm = VideoComm(self.AES, self.open_clients)
         self.audio_comm = AudioClient(host_ip, self.AES)
-
-        self.open_clients[host_ip] = port
+        # ip = [port, username]
         self.host_ip = host_ip
 
         self.ip = get_ip_by_interface("Ethernet 4")
@@ -79,7 +78,8 @@ class CallLogic:
             "hj": self.handle_join,
             "hd": self.handle_disconnect,
             "gmst": self.get_meeting_start_time,
-            "fd": self.force_disconnect
+            "fd": self.force_disconnect,
+            "gh": self.get_host_username
         }
 
         self.camera = CameraControl(jpeg_quality=5)
@@ -298,6 +298,9 @@ class CallLogic:
                     print(f"Error in command {opcode}: {e}")
 
     def get_meeting_start_time(self, data):
+        """
+        get start time from host
+        """
         try:
             if isinstance(data, list):
                 self.meeting_start_time = float(data[0])
@@ -307,6 +310,13 @@ class CallLogic:
             print("meeting start time:", self.meeting_start_time)
         except Exception as e:
             print("meeting start time parse error:", e)
+
+    def get_host_username(self, username):
+        """
+        get host username
+        """
+        self.open_clients[self.host_ip] = username
+
 
     def handle_video_msg(self, data):
         try:
@@ -333,14 +343,14 @@ class CallLogic:
     def handle_join(self, data):
         try:
             ip = data[0]
-            port = int(data[1])
+            username = data[1]
         except Exception as e:
             print("join parse error:", e)
             return
         print(f"{ip} joined the call")
         if ip == self.ip:
             return
-        self.open_clients[ip] = port
+        self.open_clients[ip] = username
 
     def force_disconnect(self):
         """

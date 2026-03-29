@@ -58,20 +58,14 @@ class VideoComm:
         if not frame_data:
             return
         encrypted = self.AES.encrypt_file(frame_data)
-        for ip in self.open_clients:
+        for ip in self.open_clients.keys():
             self.udp_socket.sendto(encrypted, (ip, self.port))
-
-    def add_user(self, user_ip, user_port):
-        """
-        Add a user to broadcast list.
-        """
-        self.open_clients[user_ip][1] = user_port
 
     def remove_user(self, user_ip, user_port):
         """
         Remove user from broadcast list.
         """
-        if user_ip in self.open_clients:
+        if user_ip in self.open_clients.keys():
             del self.open_clients[user_ip]
 
     def close(self):
