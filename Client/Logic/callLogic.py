@@ -1,5 +1,4 @@
-# callLogic.py
-
+import psutil
 import threading
 import time
 import cv2
@@ -16,6 +15,41 @@ from Client.Comms.ClientComm import ClientComm
 from Client.Logic.av_sync import AVSyncManager
 
 
+def get_ip_by_interface(interface_name="Ethernet 4"):
+    """
+    Return the IPv4 address of the given network interface.
+    :param interface_name:
+    :return:
+    """
+    addrs = psutil.net_if_addrs()
+
+    if interface_name not in addrs:
+        print("Interface not found:", interface_name)
+        print("Available interfaces:", list(addrs.keys()))
+        return None
+
+    for addr in addrs[interface_name]:
+        if addr.family == socket.AF_INET:
+            return addr.address
+
+    return None
+
+
+def get_fallback_ip(host_ip):
+    """
+    Return the local IP used to reach the host IP.
+    :param host_ip:
+    :return:
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect((host_ip, 1))
+        return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
 class CallLogic:
     def __init__(self, port, meeting_key, comm, host_ip, meeting_code):
         self.open_clients = {}   # ip -> port
@@ -30,8 +64,10 @@ class CallLogic:
         self.open_clients[host_ip] = port
         self.host_ip = host_ip
 
-        hostname = socket.gethostname()
-        self.ip = socket.gethostbyname(hostname)
+        self.ip = get_ip_by_interface("Ethernet 4")
+        if not self.ip:
+            self.ip = get_fallback_ip(host_ip)
+
         print("my ip is", self.ip)
         self.UI_queue = queue.Queue()
         self.remote_video_queue = queue.Queue()
