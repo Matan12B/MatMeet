@@ -30,11 +30,13 @@ def build_login(username,password):
     """
     Return a login msg build in the protocol structure
     """
+    return f"li^#^{username}^#^{password}"
 
 def build_register(username,password):
     """
     Return a register msg build in the protocol structure
     """
+    return f"su^#^{username}^#^{password}"
 
 def build_enter_meeting(meeting_code):
     """

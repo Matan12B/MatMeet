@@ -1,20 +1,19 @@
+# home_frame.py
+
 import time
 import wx
 from call_frame import CallFrame
 
 
 class HomeFrame(wx.Frame):
-
     def __init__(self, client):
-        super().__init__(None, title="Python Zoom", size=(400, 300))
+        super().__init__(None, title="Python Zoom", size=wx.Size(400, 300))
         self.client = client
-        self.client.start()
 
         panel = wx.Panel(self)
-
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        title = wx.StaticText(panel, label="Python Zoom")
+        title = wx.StaticText(panel, label=f"Python Zoom - {self.client.username}")
         font = title.GetFont()
         font.PointSize += 10
         title.SetFont(font)
@@ -34,32 +33,28 @@ class HomeFrame(wx.Frame):
         self.join_btn.Bind(wx.EVT_BUTTON, self.join_meeting)
 
     def start_meeting(self, event):
-        # Request server to create a meeting
         self.client.start_meeting()
-
-        # Wait briefly for meeting code
         wx.CallLater(500, self._open_call_frame)
 
     def join_meeting(self, event):
-        code = self.code_box.GetValue()
+        code = self.code_box.GetValue().strip()
 
         if not code:
             wx.MessageBox("Enter meeting code")
             return
 
-        # Request to join meeting
         self.client.request_join_meeting(code)
-
-        # Wait briefly for server response
         wx.CallLater(500, self._open_call_frame)
 
     def _open_call_frame(self):
-        # Open call frame with client logic
         while self.client.role is None:
             time.sleep(0.02)
-            continue
 
         if self.client.role:
-            call = CallFrame(self.client.role, home_frame=self)
+            call = CallFrame(
+                self.client.role,
+                home_frame=self,
+                username=self.client.username
+            )
             call.Show()
             self.Hide()

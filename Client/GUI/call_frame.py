@@ -13,6 +13,7 @@ class VideoPanel(wx.Panel):
     - a video frame
     - black screen
     - empty panel
+    - overlay text
     """
 
     def __init__(self, parent, width=478, height=359):
@@ -23,6 +24,7 @@ class VideoPanel(wx.Panel):
 
         self.current_bitmap = None
         self.show_black = False
+        self.label_text = ""
 
         self.SetMinSize(wx.Size(width, height))
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
@@ -32,6 +34,8 @@ class VideoPanel(wx.Panel):
     def set_frame(self, frame):
         """
         Receive OpenCV frame and convert it to wx.Bitmap.
+        :param frame:
+        :return:
         """
         if frame is None:
             return
@@ -49,6 +53,7 @@ class VideoPanel(wx.Panel):
     def set_black(self):
         """
         Show black panel.
+        :return:
         """
         self.current_bitmap = None
         self.show_black = True
@@ -57,40 +62,102 @@ class VideoPanel(wx.Panel):
     def clear_panel(self):
         """
         Show empty panel.
+        :return:
         """
         self.current_bitmap = None
         self.show_black = False
+        self.label_text = ""
+        self.Refresh(False)
+
+    def set_label(self, text):
+        """
+        Set overlay label text.
+        :param text:
+        :return:
+        """
+        self.label_text = text if text else ""
         self.Refresh(False)
 
     def on_paint(self, event):
         """
-        Draw current frame / black / empty state.
+        Draw current frame / black / empty state + label.
+        :param event:
+        :return:
         """
         dc = wx.AutoBufferedPaintDC(self)
         width, height = self.GetClientSize()
 
+        # ---------- draw background / frame ----------
         if self.current_bitmap is not None:
             dc.DrawBitmap(self.current_bitmap, 0, 0)
-            return
-
-        if self.show_black:
+        elif self.show_black:
             dc.SetBrush(wx.Brush(wx.Colour(0, 0, 0)))
             dc.SetPen(wx.Pen(wx.Colour(0, 0, 0)))
             dc.DrawRectangle(0, 0, width, height)
+        else:
+            bg = self.GetBackgroundColour()
+            dc.SetBrush(wx.Brush(bg))
+            dc.SetPen(wx.Pen(bg))
+            dc.DrawRectangle(0, 0, width, height)
+
+        # ---------- draw label ----------
+        if not self.label_text:
             return
 
-        bg = self.GetBackgroundColour()
-        dc.SetBrush(wx.Brush(bg))
-        dc.SetPen(wx.Pen(bg))
-        dc.DrawRectangle(0, 0, width, height)
+        dc.SetTextForeground(wx.Colour(255, 255, 255))
+
+        # camera off / black screen -> big centered text
+        if self.show_black and self.current_bitmap is None:
+            font = self.GetFont()
+            font.PointSize += 8
+            font.SetWeight(wx.FONTWEIGHT_BOLD)
+            dc.SetFont(font)
+
+            text_w, text_h = dc.GetTextExtent(self.label_text)
+
+            box_w = text_w + 30
+            box_h = text_h + 20
+            box_x = max(0, (width - box_w) // 2)
+            box_y = max(0, (height - box_h) // 2)
+
+            dc.SetBrush(wx.Brush(wx.Colour(0, 0, 0, 180)))
+            dc.SetPen(wx.Pen(wx.Colour(0, 0, 0, 180)))
+            dc.DrawRoundedRectangle(box_x, box_y, box_w, box_h, 8)
+
+            text_x = (width - text_w) // 2
+            text_y = (height - text_h) // 2
+            dc.DrawText(self.label_text, text_x, text_y)
+
+        # camera on -> small text bottom left
+        elif self.current_bitmap is not None:
+            font = self.GetFont()
+            font.PointSize += 1
+            font.SetWeight(wx.FONTWEIGHT_BOLD)
+            dc.SetFont(font)
+
+            text_w, text_h = dc.GetTextExtent(self.label_text)
+
+            pad_x = 8
+            pad_y = 4
+            box_w = text_w + (pad_x * 2)
+            box_h = text_h + (pad_y * 2)
+            box_x = 8
+            box_y = height - box_h - 8
+
+            dc.SetBrush(wx.Brush(wx.Colour(0, 0, 0, 170)))
+            dc.SetPen(wx.Pen(wx.Colour(0, 0, 0, 170)))
+            dc.DrawRoundedRectangle(box_x, box_y, box_w, box_h, 6)
+
+            dc.DrawText(self.label_text, box_x + pad_x, box_y + pad_y)
 
 
 class CallFrame(wx.Frame):
-    def __init__(self, call_logic, home_frame=None):
+    def __init__(self, call_logic, home_frame=None, username=""):
         super().__init__(None, title="Meeting", size=wx.Size(1024, 768))
 
         self.call_logic = call_logic
         self.home_frame = home_frame
+        self.username = username
 
         self.camera_width = 478
         self.camera_height = 359
@@ -99,6 +166,7 @@ class CallFrame(wx.Frame):
         self.last_self_frame = None
         self.remote_frames = {}
         self.remote_frame_times = {}
+        self.remote_usernames = {}
 
         self.is_muted = False
         self.is_camera_off = False
@@ -191,9 +259,6 @@ class CallFrame(wx.Frame):
         self._draw_remote_panels()
 
     def _update_self_frame(self):
-        """
-        Pull newest self frame from call logic.
-        """
         newest_self_frame = None
 
         if hasattr(self.call_logic, "UI_queue"):
@@ -208,6 +273,8 @@ class CallFrame(wx.Frame):
 
         if newest_self_frame is not None:
             self.last_self_frame = newest_self_frame
+
+        self.video_panels[0].set_label(self.username if self.username else "You")
 
         if not self.is_camera_off and self.last_self_frame is not None:
             self.video_panels[0].set_frame(self.last_self_frame)
@@ -234,9 +301,6 @@ class CallFrame(wx.Frame):
                 break
 
     def _draw_remote_panels(self):
-        """
-        Draw remote users.
-        """
         connected_clients = self._get_connected_remote_clients()
         panel_idx = 1
         now = time.time()
@@ -247,6 +311,9 @@ class CallFrame(wx.Frame):
 
             frame = self.remote_frames.get(client_ip)
             last_time = self.remote_frame_times.get(client_ip, 0)
+
+            display_name = self.remote_usernames.get(client_ip, client_ip)
+            self.video_panels[panel_idx].set_label(display_name)
 
             if frame is not None and (now - last_time) <= self.remote_timeout:
                 self.video_panels[panel_idx].set_frame(frame)

@@ -72,6 +72,7 @@ class Server:
             status = "1"
             self.open_clients[ip] = [username, None]
             print(f"Signup successful: {username} from {ip}")
+            print(self.db.get_all_users())
         else:
             status = "0"
             print(f"Signup failed for {username} from {ip}")

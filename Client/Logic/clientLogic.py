@@ -1,3 +1,5 @@
+# clientLogic.py
+
 import queue
 import threading
 import time
@@ -5,7 +7,6 @@ from Client.Comms.ClientComm import ClientComm
 from Client.Protocol import clientProtocol
 from Client.Logic.Host import Host
 from Client.Logic.callLogic import CallLogic
-from Server.ServerComm import ServerComm
 
 
 class Client:
@@ -14,28 +15,29 @@ class Client:
         self.port = port
         self.msgsQ = queue.Queue()
         self.comm = ClientComm(self.server_ip, self.port, self.msgsQ)
-        # using this server comm for now
+
         self.role = None
         self.username = ""
-        # keep password temp
         self.password = ""
         self.meeting_code = None
         self.active = None
+        self.handle_msgs_running = False
 
         self.commands = {
-            "sm" : self.start_meeting,
-            "rjm": self.request_join_meeting,
             "gmc": self.get_meeting_code,
             "ir": self.initialize_role,
             "ls": self.get_login_status,
-            "ss": self.get_signup_status,
-            "cj": self.client_joined
+            "rs": self.get_signup_status,
+            "hj": self.client_joined
         }
 
     def start(self):
         """
         Start the client and message thread
         """
+        if self.handle_msgs_running:
+            return
+
         time.sleep(0.2)
         threading.Thread(
             target=self.handle_msgs,
@@ -55,7 +57,6 @@ class Client:
         Receive meeting code from the server
         """
         self.meeting_code = meeting_code
-        print("Meeting code:", self.meeting_code)
 
     def request_join_meeting(self, meeting_code):
         """
@@ -66,34 +67,19 @@ class Client:
 
     def initialize_role(self, data):
         """
-        Initializes the role of the object based on the provided data.
-
-        This method determines the role of the object (either 'host' or 'guest')
-        and initializes it accordingly. If the role is invalid, it outputs an
-        appropriate message. The GUI will call start() on the role when ready.
-
-        Parameters:
-        data: list
-            A list containing initialization information:
-            - data[0]: str - Specifies the role ('host' or 'guest').
-            - data[1]: Any - Contains open client information.
-            - data[2]: int - meeting_key
-
-        Raises:
-        ValueError
-            If the role specified in data[0] is invalid or unsupported.
+        Initialize the meeting role
         """
         host_ip = ""
         role = data[0]
         port = int(data[1])
         meeting_key = data[2]
+
         if role == "guest" and len(data) == 4:
             host_ip = data[3]
+
         if role == "host":
             self.role = Host(port, meeting_key, self.comm, self.meeting_code)
         elif role == "guest":
-            if len(data) != 4:
-                raise ValueError("Invalid guest role data")
             self.role = CallLogic(port, meeting_key, self.comm, host_ip, self.meeting_code)
         else:
             print("Invalid role")
@@ -104,36 +90,45 @@ class Client:
         """
         while True:
             msg = self.msgsQ.get()
+            print(msg)
             opcode, data = clientProtocol.unpack(msg)
+
             if self.role:
                 self.role.handle_msgs_from_client_logic(opcode, data)
                 continue
+
             if opcode in self.commands:
                 self.commands[opcode](data)
 
     def get_login_status(self, status):
         """
-
+        save login status
         """
         self.active = status
 
     def get_signup_status(self, status):
         """
-
+        save signup status
         """
         self.active = status
 
     def log_in(self, username, password):
         """
-
+        send login request
         """
+        self.username = username
+        self.password = password
+        self.active = None
         msg = clientProtocol.build_login(username, password)
         self.comm.send_msg(msg)
 
     def sign_up(self, username, password):
         """
-
+        send signup request
         """
+        self.username = username
+        self.password = password
+        self.active = None
         msg = clientProtocol.build_register(username, password)
         self.comm.send_msg(msg)
 
@@ -141,14 +136,18 @@ class Client:
         """
         Handle when a new client joins the call
         """
-        # TODO: implement client joined logic
         pass
+
+    def get_error(self, data):
+        """
+        print error from server
+        """
+        print("error from server - ", data)
 
 def main():
     ip = input("Enter ip")
     port = int(input("Enter port"))
     client = Client(ip, port)
-
     client.start()
 
     while True:

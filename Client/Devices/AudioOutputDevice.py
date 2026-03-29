@@ -44,3 +44,6 @@ class AudioOutput:
     def list_devices():
         """List all available audio devices"""
         print(sd.query_devices())
+
+def main():
+    a = AudioOutput()

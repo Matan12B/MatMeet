@@ -4,20 +4,21 @@ def unpack(msg):
     Return list of parameters from the msg
     """
     split = msg.split("^#^")
+    if len(split) > 2:
+        return [split[0], split[1:]]
     return split
 
 def build_login_status(status):
     """
     Return a message of the status of the login in the protocol structure
     """
-    # todo add opcode
-    return f"{status}"
+    return f"ls^#^{status}"
 
 def build_register_status(status):
     """
     Return a message of the status of the register in the protocol structure
     """
-    return status
+    return f"rs^#^{status}"
 
 def build_video_msg(video_data):
     """
@@ -62,6 +63,12 @@ def build_meeting_closed():
     :return:
     """
     return f"fd^#^"
+
+def build_error(error):
+    """
+    return error msg
+    """
+    return f"ge^#^{error}"
 
 
 
