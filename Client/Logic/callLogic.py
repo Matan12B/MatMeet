@@ -4,7 +4,7 @@ import threading
 import time
 import cv2
 import queue
-
+import socket
 from Client.Devices.Camera import CameraControl
 from Client.Devices.Microphone import Microphone
 from Client.Devices.AudioOutputDevice import AudioOutput
@@ -30,8 +30,8 @@ class CallLogic:
         self.open_clients[host_ip] = port
         self.host_ip = host_ip
 
-        self.ip = "10.0.0.13"
-
+        hostname = socket.gethostname()
+        self.ip = socket.gethostbyname(hostname)
         self.UI_queue = queue.Queue()
         self.remote_video_queue = queue.Queue()
         self.latest_remote_frames = {}
