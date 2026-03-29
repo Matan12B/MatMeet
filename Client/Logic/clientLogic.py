@@ -27,8 +27,7 @@ class Client:
             "gmc": self.get_meeting_code,
             "ir": self.initialize_role,
             "ls": self.get_login_status,
-            "rs": self.get_signup_status,
-            "hj": self.client_joined
+            "rs": self.get_signup_status
         }
 
     def start(self):
@@ -62,7 +61,7 @@ class Client:
         """
         Send request to join meeting
         """
-        msg = clientProtocol.build_enter_meeting(meeting_code)
+        msg = clientProtocol.build_enter_meeting(meeting_code, self.username)
         self.comm.send_msg(msg)
 
     def initialize_role(self, data):
@@ -131,12 +130,6 @@ class Client:
         self.active = None
         msg = clientProtocol.build_register(username, password)
         self.comm.send_msg(msg)
-
-    def client_joined(self, data):
-        """
-        Handle when a new client joins the call
-        """
-        pass
 
     def get_error(self, data):
         """

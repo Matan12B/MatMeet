@@ -103,15 +103,14 @@ class Server:
         self.comm.send_msg(ip, msg)
 
     def join_meeting(self, ip, data):
-        meeting_id = data
+        meeting_id = data[0]
         if meeting_id in self.meetings:
 
             self.meetings[meeting_id][2].append(ip)  # append to client IP list
             meeting_port = self.meetings[meeting_id][0]
             shared_key = self.meetings[meeting_id][1]
             participants = self.meetings[meeting_id][2]
-            host_ip = self.meetings[meeting_id][3]
-
+            username = data[1]
             existing_clients = list(participants)
             participants.append(ip)
 
@@ -126,7 +125,7 @@ class Server:
 
             # Notify other clients
             for other_ip in existing_clients:
-                notify_existing = serverProtocol.build_client_joined(ip, meeting_port, shared_key)
+                notify_existing = serverProtocol.build_client_joined(ip, meeting_port, shared_key, username)
                 self.comm.send_msg(other_ip, notify_existing)
         else:
             print(f"Meeting {meeting_id} not found for client {ip}")

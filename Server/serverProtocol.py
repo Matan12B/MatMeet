@@ -50,11 +50,11 @@ def build_start_meeting():
     """
     return f"sm^#^"
 
-def build_client_joined(ip, port, shared_key):
+def build_client_joined(ip, port, shared_key, username):
     """
-
+    build msg with data about client
     """
-    return f"hj^#^{ip}^#^{port}^#^{shared_key}"
+    return f"hj^#^{ip}^#^{port}^#^{shared_key}^#^{username}"
 
 def build_meeting_closed():
     """

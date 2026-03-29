@@ -263,17 +263,17 @@ class Host:
     def handle_join(self, data):
         ip = data[0]
         port = int(data[1])
-
+        client_username = data[3]
         if ip == self.ip:
             return
 
         if ip not in self.open_clients:
-            self.open_clients[ip] = [None, port]
+            self.open_clients[ip] = [None, port, client_username]
         else:
             if isinstance(self.open_clients[ip], list) and len(self.open_clients[ip]) >= 2:
                 self.open_clients[ip][1] = port
             else:
-                self.open_clients[ip] = [None, port]
+                self.open_clients[ip] = [None, port, client_username]
 
         time.sleep(0.1)
 
@@ -284,6 +284,9 @@ class Host:
             self.send_meeting_start_time(ip)
 
     def send_meeting_start_time(self, ip):
+        """
+        send relative time to all guests for av sync
+        """
         msg = clientProtocol.build_meeting_start_time(self.meeting_start_time)
         self.host_server.send_msg(ip, msg)
 
