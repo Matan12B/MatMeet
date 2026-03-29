@@ -103,14 +103,14 @@ class Server:
         self.comm.send_msg(ip, msg)
 
     def join_meeting(self, ip, data):
-        meeting_id = data[0]
+        meeting_id = data[1]
         if meeting_id in self.meetings:
 
             self.meetings[meeting_id][2].append(ip)  # append to client IP list
             meeting_port = self.meetings[meeting_id][0]
             shared_key = self.meetings[meeting_id][1]
             participants = self.meetings[meeting_id][2]
-            username = data[1]
+            username = data[0]
             existing_clients = list(participants)
             participants.append(ip)
 
@@ -190,7 +190,6 @@ class Server:
         """
         while True:
             ip, msg = self.msgsQ.get()
-            print(f"Received message from {ip}: {msg}")
             try:
                 unpacked = serverProtocol.unpack(msg)
                 if len(unpacked) < 2:

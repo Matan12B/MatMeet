@@ -42,7 +42,7 @@ def build_enter_meeting(username ,meeting_code):
     """
     Return a request to enter meeting msg build in the protocol structure
     """
-    return f"jm^#^{meeting_code}^#^{username}"
+    return f"jm^#^{username}^#^{meeting_code}"
 
 def build_force_close_camera():
     """
