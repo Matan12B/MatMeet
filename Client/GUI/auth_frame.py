@@ -5,7 +5,7 @@ from home_frame import HomeFrame
 
 class AuthFrame(wx.Frame):
     def __init__(self, client):
-        super().__init__(None, title="Python Zoom - Login / Sign Up", size=wx.Size(420, 340))
+        super().__init__(None, title="Python Zoom - Login / Sign Up", size=wx.Size(420, 400))
 
         self.client = client
         self.mode = "login"
@@ -131,9 +131,10 @@ class AuthFrame(wx.Frame):
             return
 
         if self.client.active == "1":
-            self.open_home()
+            self.status_text.SetLabel("Login successful!")
+            wx.CallLater(500, self.open_home)
         else:
-            self.status_text.SetLabel("Login failed")
+            self.status_text.SetLabel("Login failed: incorrect username or password")
 
     def check_signup_result(self):
         """
@@ -145,9 +146,10 @@ class AuthFrame(wx.Frame):
             return
 
         if self.client.active == "1":
-            self.open_home()
+            self.status_text.SetLabel("Account created! Logging in...")
+            wx.CallLater(500, self.open_home)
         else:
-            self.status_text.SetLabel("Sign up failed")
+            self.status_text.SetLabel("Sign up failed: username already taken")
 
     def open_home(self):
         """

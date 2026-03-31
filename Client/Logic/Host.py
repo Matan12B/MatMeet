@@ -263,10 +263,16 @@ class Host(CallParticipant):
 
     def close(self):
         """
-        Notify the central server of the meeting closing, then run full teardown.
+        Kick all guests, notify the central server of the meeting closing, then run full teardown.
         """
         if not self.running:
             return
+        try:
+            kick_msg = clientProtocol.build_kick_msg()
+            self.host_server.broadcast(kick_msg)
+            time.sleep(0.15)
+        except Exception as e:
+            print("kick broadcast error:", e)
         msg2server = clientProtocol.build_leave_meeting(self.meeting_code)
         self.comm.send_msg(msg2server)
         super().close()
