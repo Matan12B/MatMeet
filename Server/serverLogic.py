@@ -122,6 +122,7 @@ class Server:
 
             give_role  = serverProtocol.build_give_role("guest", meeting_port, shared_key, self.meetings[meeting_id][3])
             self.comm.send_msg(ip, give_role)
+            print("sending role")
 
             give_existing_clients = serverProtocol.build_clients_connected(existing_clients)
             self.comm.send_msg(ip, give_existing_clients)

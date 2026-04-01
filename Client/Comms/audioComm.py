@@ -159,6 +159,7 @@ class AudioServer:
         self.audio_queue = queue.Queue()
         self.audio_clients = {}
         self.socket_to_ip = {}
+        self._send_locks = {}   # ip -> Lock; serialises concurrent sends to the same socket
         self.running = True
         threading.Thread(target=self._main_loop, daemon=True).start()
 
@@ -207,6 +208,7 @@ class AudioServer:
                         client_ip = addr[0]
                         self.audio_clients[client_ip] = client_socket
                         self.socket_to_ip[client_socket] = client_ip
+                        self._send_locks[client_ip] = threading.Lock()
                         print(f"{client_ip} connected to audio server")
                     except Exception as e:
                         print(f"audio accept error: {e}")
@@ -240,6 +242,7 @@ class AudioServer:
     def send_audio(self, client_ip, audio_msg):
         """
         Encrypt and send an audio message to a specific connected client.
+        Acquires the per-client send lock to prevent interleaving with concurrent sends.
 
         :param client_ip: IP address of the target client.
         :param audio_msg: Raw audio bytes to send.
@@ -247,10 +250,15 @@ class AudioServer:
         if client_ip not in self.audio_clients or not self.AES:
             return
         client_socket = self.audio_clients[client_ip]
+        lock = self._send_locks.get(client_ip)
         try:
             encrypted = self.AES.encrypt_file(audio_msg)
-            client_socket.sendall(str(len(encrypted)).zfill(10).encode())
-            client_socket.sendall(encrypted)
+            frame = str(len(encrypted)).zfill(10).encode() + encrypted
+            if lock:
+                with lock:
+                    client_socket.sendall(frame)
+            else:
+                client_socket.sendall(frame)
         except Exception as e:
             print(f"audio send error to {client_ip}: {e}")
             self.close_client(client_ip)
@@ -261,6 +269,8 @@ class AudioServer:
         Encrypts the payload exactly once and reuses the same ciphertext for every
         recipient (all clients share the same meeting AES key), reducing CPU load
         from O(N) to O(1) AES operations per broadcast.
+        A per-client lock serialises concurrent sends from different threads so that
+        the length header and payload are never interleaved on the wire.
 
         :param audio_msg: Raw audio bytes to broadcast.
         :param sender_ip: IP address of the original sender, who will be excluded.
@@ -270,7 +280,8 @@ class AudioServer:
             return
         try:
             encrypted = self.AES.encrypt_file(audio_msg)
-            length_header = str(len(encrypted)).zfill(10).encode()
+            # Pre-build the full frame (header + payload) so each sendall is one syscall
+            frame = str(len(encrypted)).zfill(10).encode() + encrypted
         except Exception as e:
             print(f"audio broadcast encrypt error: {e}")
             return
@@ -278,9 +289,13 @@ class AudioServer:
             client_socket = self.audio_clients.get(ip)
             if not client_socket:
                 continue
+            lock = self._send_locks.get(ip)
             try:
-                client_socket.sendall(length_header)
-                client_socket.sendall(encrypted)
+                if lock:
+                    with lock:
+                        client_socket.sendall(frame)
+                else:
+                    client_socket.sendall(frame)
             except Exception as e:
                 print(f"audio broadcast send error to {ip}: {e}")
                 self.close_client(ip)
@@ -296,6 +311,7 @@ class AudioServer:
                 client_socket = self.audio_clients[client_ip]
                 self.socket_to_ip.pop(client_socket, None)
                 self.audio_clients.pop(client_ip, None)
+                self._send_locks.pop(client_ip, None)
                 try:
                     client_socket.shutdown(socket.SHUT_RDWR)
                 except Exception:
