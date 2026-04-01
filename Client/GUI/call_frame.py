@@ -346,28 +346,38 @@ class CallFrame(wx.Frame):
         """
         Draw remote users. Also cleans up stale remote_frames entries for
         clients that are no longer connected.
+        Camera-off detection: if no real frame has arrived from a sender within
+        VIDEO_TIMEOUT seconds, show a black placeholder + username instead of the
+        frozen last frame (av_sync caches the last frame indefinitely).
         """
+        VIDEO_TIMEOUT = 1.5  # seconds without a new network frame → show camera-off
+
         connected_clients = self._get_connected_remote_clients()
         connected_set = set(connected_clients)
         panel_idx = 1
-        now = time.time()
+        now = time.monotonic()
 
         # Remove stale frame entries for clients that have left
         for stale_ip in [ip for ip in list(self.remote_frames.keys()) if ip not in connected_set]:
             self.remote_frames.pop(stale_ip, None)
             self.remote_frame_times.pop(stale_ip, None)
 
+        # Per-sender receive timestamps from the logic layer (updated only on real network frames)
+        last_received = getattr(self.call_logic, "last_video_received_time", {})
+
         for client_ip in connected_clients:
             if panel_idx >= len(self.video_panels):
                 break
 
             frame = self.remote_frames.get(client_ip)
-            last_time = self.remote_frame_times.get(client_ip, 0)
-
             display_name = self._get_display_name_for_ip(client_ip)
             self.video_panels[panel_idx].set_label(display_name)
 
-            if frame is not None and (now - last_time) <= self.remote_timeout:
+            # Use the network-arrival time so a frozen cached frame doesn't fool the timeout
+            last_network_time = last_received.get(client_ip, 0)
+            camera_active = frame is not None and (now - last_network_time) <= VIDEO_TIMEOUT
+
+            if camera_active:
                 self.video_panels[panel_idx].set_frame(frame)
             else:
                 self.video_panels[panel_idx].set_black()

@@ -78,10 +78,14 @@ class CallParticipant:
         self.UI_queue = queue.Queue()
         self.remote_video_queue = queue.Queue()
         self.latest_remote_frames = {}
+        # Tracks when the last real video frame arrived from each sender over the network.
+        # Used to detect camera-off: if no frame arrives for >VIDEO_TIMEOUT seconds the
+        # GUI shows a black placeholder instead of the frozen last frame.
+        self.last_video_received_time = {}
 
         self.camera = CameraControl(width=320, height=240, jpeg_quality=5)
         self.encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 30]
-        self.mic = Microphone(50, rate=16000, channels=1, chunk=160)
+        self.mic = Microphone(80, rate=16000, channels=1, chunk=160)
         self.AudioOutput = AudioOutput(rate=16000, channels=1)
         self.av_sync = AVSyncManager(playout_delay=playout_delay)
         self.video_comm = VideoComm(self.AES, self.open_clients)
@@ -221,6 +225,7 @@ class CallParticipant:
                         continue
 
                     self.av_sync.add_video(sender_ip, float(timestamp), video_data)
+                    self.last_video_received_time[sender_ip] = time.monotonic()
 
                 time.sleep(0.005)
 
@@ -321,6 +326,8 @@ class CallParticipant:
 
         if ip in self.latest_remote_frames:
             del self.latest_remote_frames[ip]
+
+        self.last_video_received_time.pop(ip, None)
 
         self.av_sync.remove_sender(ip)
 
