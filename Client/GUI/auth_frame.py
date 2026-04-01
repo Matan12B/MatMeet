@@ -113,6 +113,8 @@ class AuthFrame(wx.Frame):
         if username is None:
             return
 
+        self.submit_btn.Disable()
+
         if self.mode == "login":
             self.status_text.SetLabel("Checking login...")
             self.client.log_in(username, password)
@@ -136,6 +138,7 @@ class AuthFrame(wx.Frame):
             wx.CallLater(500, self.open_home)
         else:
             self.status_text.SetLabel("Login failed: incorrect username or password")
+            self.submit_btn.Enable()
 
     def check_signup_result(self):
         """
@@ -151,6 +154,7 @@ class AuthFrame(wx.Frame):
             wx.CallLater(500, self.open_home)
         else:
             self.status_text.SetLabel("Sign up failed: username already taken")
+            self.submit_btn.Enable()
 
     def open_home(self):
         """

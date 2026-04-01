@@ -84,10 +84,10 @@ class AudioClient:
                     else:
                         print("incorrect audio msg header on client")
             except Exception as e:
-                print(f"error in receiving audio message - {e}")
+                print(f"error in receiving audio message -msg: {decrypt_audio_chunk} {e}")
                 self._close_client()
                 break
-                
+
     def send_audio(self, audio_chunk):
         """
         Encrypt and send an audio chunk to the server.

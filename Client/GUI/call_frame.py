@@ -264,7 +264,7 @@ class CallFrame(wx.Frame):
         self.Bind(wx.EVT_TIMER, self.update_frames, self.timer)
         self.timer.Start(1000 // 24)
 
-        threading.Thread(target=self.call_logic.start, daemon=True).start()
+        threading.Thread(target=self._run_call, daemon=True).start()
 
     def _run_call(self):
         try:
@@ -478,8 +478,9 @@ class CallFrame(wx.Frame):
     def _shutdown(self):
         """
         Close frame safely and return to HomeFrame.
-        The heavy call_logic.close() runs in a background thread so the GUI
-        never blocks while sockets / threads wind down.
+        VideoComm is closed synchronously first (releases UDP port 5000 immediately
+        so a rejoin can bind it right away). Everything else tears down in a background
+        thread so the GUI never blocks.
         """
         if self.is_closing:
             return
@@ -492,18 +493,26 @@ class CallFrame(wx.Frame):
         except Exception as e:
             print("timer stop error:", e)
 
+        # Release UDP port 5000 immediately so a rejoin can bind it
+        try:
+            if hasattr(self.call_logic, "video_comm"):
+                self.call_logic.video_comm.close()
+        except Exception as e:
+            print("video_comm early close error:", e)
+
         # Restore home screen immediately — don't wait for network teardown
         try:
             if self.home_frame:
                 if hasattr(self.home_frame.client, "role"):
                     self.home_frame.client.role = None
+                self.home_frame._enable_buttons()
                 self.home_frame.Show()
 
             self.Destroy()
         except Exception as e:
             print("destroy error:", e)
 
-        # Tear down the call logic in a background thread
+        # Tear down the rest of the call logic in a background thread
         call_logic = self.call_logic
 
         def _do_close():

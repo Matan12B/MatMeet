@@ -31,7 +31,16 @@ class HomeFrame(wx.Frame):
         self.start_btn.Bind(wx.EVT_BUTTON, self.start_meeting)
         self.join_btn.Bind(wx.EVT_BUTTON, self.join_meeting)
 
+    def _disable_buttons(self):
+        self.start_btn.Disable()
+        self.join_btn.Disable()
+
+    def _enable_buttons(self):
+        self.start_btn.Enable()
+        self.join_btn.Enable()
+
     def start_meeting(self, event):
+        self._disable_buttons()
         self.client.start_meeting()
         wx.CallLater(500, self._open_call_frame)
 
@@ -42,6 +51,7 @@ class HomeFrame(wx.Frame):
             wx.MessageBox("Enter meeting code")
             return
 
+        self._disable_buttons()
         self.client.request_join_meeting(code)
         wx.CallLater(500, self._open_call_frame)
 
@@ -52,7 +62,6 @@ class HomeFrame(wx.Frame):
             deadline = time.time() + 10.0
             while self.client.role is None and time.time() < deadline:
                 time.sleep(0.02)
-
             wx.CallAfter(self._create_call_frame)
 
         threading.Thread(target=_wait_for_role, daemon=True).start()
@@ -66,3 +75,12 @@ class HomeFrame(wx.Frame):
             )
             call.Show()
             self.Hide()
+        else:
+            # Timed out — server didn't respond or meeting doesn't exist
+            wx.MessageBox(
+                "Could not join the meeting.\nCheck the code and try again.",
+                "Connection Failed",
+                wx.OK | wx.ICON_ERROR
+            )
+            self._enable_buttons()
+
