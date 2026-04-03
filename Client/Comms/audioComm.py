@@ -166,7 +166,6 @@ class AudioServer:
     def _recv_exact(self, sock, size):
         """
         Receive exactly `size` bytes from a given client socket.
-
         :param sock: The client socket to read from.
         :param size: Number of bytes to read.
         :return: The received bytes, or None if the connection was lost or an error occurred.
@@ -243,7 +242,6 @@ class AudioServer:
         """
         Encrypt and send an audio message to a specific connected client.
         Acquires the per-client send lock to prevent interleaving with concurrent sends.
-
         :param client_ip: IP address of the target client.
         :param audio_msg: Raw audio bytes to send.
         """
@@ -267,11 +265,7 @@ class AudioServer:
         """
         Send an audio message to all connected clients except the sender.
         Encrypts the payload exactly once and reuses the same ciphertext for every
-        recipient (all clients share the same meeting AES key), reducing CPU load
-        from O(N) to O(1) AES operations per broadcast.
-        A per-client lock serialises concurrent sends from different threads so that
-        the length header and payload are never interleaved on the wire.
-
+        recipient (all clients share the same meeting AES key)
         :param audio_msg: Raw audio bytes to broadcast.
         :param sender_ip: IP address of the original sender, who will be excluded.
         """
@@ -303,7 +297,6 @@ class AudioServer:
     def close_client(self, client_ip):
         """
         Disconnect and remove a specific client from the server.
-
         :param client_ip: IP address of the client to close.
         """
         if client_ip in self.audio_clients:

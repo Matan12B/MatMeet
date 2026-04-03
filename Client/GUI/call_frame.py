@@ -56,25 +56,25 @@ class VideoPanel(wx.Panel):
         Show black panel.
         :return:
         """
-        already_black = self.show_black and self.current_bitmap is None
+        if self.show_black and self.current_bitmap is None:
+            return
+
         self.current_bitmap = None
         self.show_black = True
-
-        if not already_black:
-            self.Refresh(False)
+        self.Refresh(False)
 
     def clear_panel(self):
         """
         Show empty panel.
         :return:
         """
-        already_clear = (self.current_bitmap is None) and (not self.show_black) and (self.label_text == "")
+        if self.current_bitmap is None and not self.show_black and self.label_text == "":
+            return
+
         self.current_bitmap = None
         self.show_black = False
         self.label_text = ""
-
-        if not already_clear:
-            self.Refresh(False)
+        self.Refresh(False)
 
     def set_label(self, text):
         """
@@ -82,7 +82,7 @@ class VideoPanel(wx.Panel):
         :param text:
         :return:
         """
-        text = text if text else ""
+        text = text or ""
 
         if text == self.label_text:
             return
@@ -170,6 +170,8 @@ class VideoPanel(wx.Panel):
 
 
 class CallFrame(wx.Frame):
+    VIDEO_TIMEOUT = 1.5  # seconds without a new network frame → show camera-off
+
     def __init__(self, call_logic, home_frame=None, username=""):
         super().__init__(None, title="Meeting", size=wx.Size(1024, 768))
 
@@ -184,7 +186,6 @@ class CallFrame(wx.Frame):
         self.last_self_frame = None
         self.remote_frames = {}
         self.remote_frame_times = {}
-        self.remote_usernames = {}
 
         self.is_muted = False
         self.is_camera_off = False
@@ -350,15 +351,13 @@ class CallFrame(wx.Frame):
         VIDEO_TIMEOUT seconds, show a black placeholder + username instead of the
         frozen last frame (av_sync caches the last frame indefinitely).
         """
-        VIDEO_TIMEOUT = 1.5  # seconds without a new network frame → show camera-off
-
         connected_clients = self._get_connected_remote_clients()
         connected_set = set(connected_clients)
         panel_idx = 1
         now = time.monotonic()
 
         # Remove stale frame entries for clients that have left
-        for stale_ip in [ip for ip in list(self.remote_frames.keys()) if ip not in connected_set]:
+        for stale_ip in [ip for ip in self.remote_frames if ip not in connected_set]:
             self.remote_frames.pop(stale_ip, None)
             self.remote_frame_times.pop(stale_ip, None)
 
@@ -375,7 +374,7 @@ class CallFrame(wx.Frame):
 
             # Use the network-arrival time so a frozen cached frame doesn't fool the timeout
             last_network_time = last_received.get(client_ip, 0)
-            camera_active = frame is not None and (now - last_network_time) <= VIDEO_TIMEOUT
+            camera_active = frame is not None and (now - last_network_time) <= self.VIDEO_TIMEOUT
 
             if camera_active:
                 self.video_panels[panel_idx].set_frame(frame)

@@ -4,56 +4,59 @@ import time
 import cv2
 import numpy as np
 
-MAX_CHUNK_SIZE = 1000
-
-# frame_id      -> 4 bytes unsigned int
-# timestamp     -> 8 bytes double
-# total_parts   -> 1 byte
-# part_index    -> 1 byte
-# payload_size  -> 2 bytes unsigned short
-HEADER_FORMAT = "!IdBBH"
-HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
-
-
-def split_frame_to_packets(frame_id, timestamp, frame_bytes, chunk_size=MAX_CHUNK_SIZE):
-    """
-    Split encoded frame bytes into many small UDP packets.
-    :param frame_id:
-    :param timestamp:
-    :param frame_bytes:
-    :param chunk_size:
-    :return:
-    """
-    if not frame_bytes:
-        return []
-
-    total_parts = math.ceil(len(frame_bytes) / chunk_size)
-
-    if total_parts > 255:
-        raise ValueError("frame is too large for current packet format")
-
-    packets = []
-
-    for part_index in range(total_parts):
-        start = part_index * chunk_size
-        end = start + chunk_size
-        chunk = frame_bytes[start:end]
-
-        header = struct.pack(
-            HEADER_FORMAT,
-            frame_id,
-            float(timestamp),
-            total_parts,
-            part_index,
-            len(chunk)
-        )
-
-        packets.append(header + chunk)
-
-    return packets
-
 
 class FrameReassembler:
+    MAX_CHUNK_SIZE = 1000
+
+    # frame_id      -> 4 bytes unsigned int
+    # timestamp     -> 8 bytes double
+    # total_parts   -> 1 byte
+    # part_index    -> 1 byte
+    # payload_size  -> 2 bytes unsigned short
+    HEADER_FORMAT = "!IdBBH"
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+
+    @staticmethod
+    def split_frame_to_packets(frame_id, timestamp, frame_bytes, chunk_size=None):
+        """
+        Split encoded frame bytes into many small UDP packets.
+        :param frame_id:
+        :param timestamp:
+        :param frame_bytes:
+        :param chunk_size:
+        :return:
+        """
+        if chunk_size is None:
+            chunk_size = FrameReassembler.MAX_CHUNK_SIZE
+
+        if not frame_bytes:
+            return []
+
+        total_parts = math.ceil(len(frame_bytes) / chunk_size)
+
+        if total_parts > 255:
+            raise ValueError("frame is too large for current packet format")
+
+        packets = []
+
+        for part_index in range(total_parts):
+            start = part_index * chunk_size
+            end = start + chunk_size
+            chunk = frame_bytes[start:end]
+
+            header = struct.pack(
+                FrameReassembler.HEADER_FORMAT,
+                frame_id,
+                float(timestamp),
+                total_parts,
+                part_index,
+                len(chunk)
+            )
+
+            packets.append(header + chunk)
+
+        return packets
+
     def __init__(self):
         self.frame_store = {}
 
@@ -62,15 +65,15 @@ class FrameReassembler:
         Return:
         (frame, timestamp) or (None, None)
         """
-        if len(packet) < HEADER_SIZE:
+        if len(packet) < self.HEADER_SIZE:
             return None, None
 
         try:
-            header = packet[:HEADER_SIZE]
-            payload = packet[HEADER_SIZE:]
+            header = packet[:self.HEADER_SIZE]
+            payload = packet[self.HEADER_SIZE:]
 
             frame_id, timestamp, total_parts, part_index, payload_size = struct.unpack(
-                HEADER_FORMAT,
+                self.HEADER_FORMAT,
                 header
             )
 

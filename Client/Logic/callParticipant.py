@@ -54,7 +54,7 @@ class CallParticipant:
     """
 
     def __init__(self, meeting_key, comm, meeting_code, username,
-                 fallback_target_ip="8.8.8.8", playout_delay=0.03):
+                 fallback_target_ip="8.8.8.8", playout_delay=0.03, video_port=5000):
         """
         Initialize shared call state, devices, and media pipeline.
 
@@ -88,7 +88,7 @@ class CallParticipant:
         self.mic = Microphone(80, rate=16000, channels=1, chunk=160)
         self.AudioOutput = AudioOutput(rate=16000, channels=1)
         self.av_sync = AVSyncManager(playout_delay=playout_delay)
-        self.video_comm = VideoComm(self.AES, self.open_clients)
+        self.video_comm = VideoComm(self.AES, self.open_clients, video_port)
 
         self.video_send_interval = 1 / 15.0
         self.last_video_send_time = 0.0

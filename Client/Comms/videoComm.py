@@ -5,7 +5,7 @@ import time
 from Client.Logic import frameAssembler
 
 class VideoComm:
-    def __init__(self, AES, open_clients):
+    def __init__(self, AES, open_clients, port=5000):
         """
         Video communication over UDP with AES encryption.
         :param AES:
@@ -14,7 +14,7 @@ class VideoComm:
         """
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.port = 5000
+        self.port = port
         self.udp_socket.bind(("0.0.0.0", self.port))
         self.AES = AES
         self.open_clients = open_clients
@@ -92,15 +92,13 @@ class VideoComm:
             return
         try:
             frame_id = self._next_frame_id()
-            packets = frameAssembler.split_frame_to_packets(frame_id, timestamp, frame_bytes)
+            packets = frameAssembler.FrameReassembler.split_frame_to_packets(frame_id, timestamp, frame_bytes)
         except Exception as e:
             print("split frame error:", e)
             return
-
         clients = [ip for ip in list(self.open_clients.keys()) if ip]
         if not clients:
             return
-
         # Encrypt once per packet, broadcast same bytes to every client
         for packet in packets:
             try:
@@ -113,15 +111,6 @@ class VideoComm:
                     self.udp_socket.sendto(encrypted_packet, (ip, self.port))
                 except Exception as e:
                     print(f"send frame error to {ip}:", e)
-
-    def add_user(self, user_ip, user_port):
-        """
-        Add user to broadcast list.
-        :param user_ip:
-        :param user_port:
-        :return:
-        """
-        self.open_clients[user_ip] = user_port
 
     def remove_user(self, user_ip, user_port):
         """

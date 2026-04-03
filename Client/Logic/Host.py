@@ -16,7 +16,8 @@ from Client.Logic.callParticipant import CallParticipant
 
 
 class Host(CallParticipant):
-    def __init__(self, port, meeting_key, comm, meeting_code, username):
+    def __init__(self, port, meeting_key, comm, meeting_code, username,
+                 video_port=5000, audio_port=3000):
         """
         Initialize the host participant: shared devices via parent, plus
         the host-side TCP server and AudioServer for managing guests.
@@ -26,6 +27,8 @@ class Host(CallParticipant):
         :param comm: Communication channel to the central server.
         :param meeting_code: The meeting room code.
         :param username: Host's display name.
+        :param video_port: UDP port for video communication.
+        :param audio_port: TCP port for audio communication.
         """
         super().__init__(
             meeting_key=meeting_key,
@@ -33,12 +36,13 @@ class Host(CallParticipant):
             meeting_code=meeting_code,
             username=username,
             fallback_target_ip="8.8.8.8",
-            playout_delay=0.03
+            playout_delay=0.03,
+            video_port=video_port
         )
 
         self.msgQ = queue.Queue()
         self.host_server = ClientServer(port, self.msgQ, self.open_clients, self.AES)
-        self.audio_comm = AudioServer(AES=self.AES, open_clients=self.open_clients)
+        self.audio_comm = AudioServer(port=audio_port, AES=self.AES, open_clients=self.open_clients)
 
         self.commands = {
             "hj": self.handle_join,

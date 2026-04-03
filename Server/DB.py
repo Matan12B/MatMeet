@@ -6,7 +6,7 @@ import hmac
 
 class DB:
     def __init__(self):
-        self.DBname = "users.db"
+        self.DBname = "UserManagementDB.db"
         self.conn = None
         self.curr = None
         self._createDB()

@@ -109,13 +109,14 @@ class CameraControl:
                     self.failed_reads += 1
                     print(f"Camera read failed: {self.failed_reads}")
 
-                    # After repeated failures, reopen camera
+                    # after multi failures open camera again
                     if self.failed_reads >= 10:
                         print("Reopening camera after repeated read failures...")
                         self._open_camera()
                         self.failed_reads = 0
 
-                    # if camera is stale for too long, clear last_frame
+                    # if camera didnt take a pic for too long clear last_frame
+                    # note: so the camera wont display the same frame multiple times if the camera isnt capturing
                     if time.time() - self.last_frame_time > 1.0:
                         with self.lock:
                             self.last_frame = None

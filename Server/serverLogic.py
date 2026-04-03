@@ -4,15 +4,18 @@ import time
 from Server.DB import DB
 from Server.ServerComm import ServerComm
 from Server import serverProtocol
+from Common.settings import load_settings
 from random import choice
 from string import ascii_uppercase
 import random
 
 class Server:
-    def __init__(self, port=1231):
+    def __init__(self, port=1231, dh_p=797, dh_g=100):
         self.port = port
+        self.dh_p = dh_p
+        self.dh_g = dh_g
         self.msgsQ = queue.Queue()
-        self.comm = ServerComm(self.port, self.msgsQ)
+        self.comm = ServerComm(self.port, self.msgsQ, self.dh_p, self.dh_g)
         self.db = DB()
         # [ip] = [username, call_id]
         self.open_clients = {}
@@ -229,7 +232,8 @@ def main():
     """
     Create and start the server
     """
-    server = Server(port=3018)
+    server_ip, server_port, video_port, audio_port, dh_p, dh_g = load_settings()
+    server = Server(port=server_port, dh_p=dh_p, dh_g=dh_g)
     server.start()
 
     # Keep main thread alive

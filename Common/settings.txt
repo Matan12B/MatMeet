@@ -1,0 +1,6 @@
+server_ip=10.0.0.14
+server_port=3018
+video_port=5000
+audio_port=3000
+dh_p=797
+dh_g=100

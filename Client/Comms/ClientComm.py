@@ -8,12 +8,14 @@ from Common.Cipher import DiffiHelman, AESCipher
 import os
 
 class ClientComm:
-    def __init__(self, server_ip, port, recvQ, AES=None):
+    def __init__(self, server_ip, port, recvQ, AES=None, dh_p=797, dh_g=100):
         self.my_socket = socket.socket()
         self.server_ip = server_ip
         self.port = port
         self.recvQ = recvQ
         self.cipher = AES
+        self.dh_p = dh_p
+        self.dh_g = dh_g
         self.running = False
         self.open_clients= {}
         self.connected = threading.Event()
@@ -100,14 +102,14 @@ class ClientComm:
         """
         self._close_client()
 
-    def client_exchange(self, diffie):
+    def _exchange_key(self):
         """
-        exchange keys with server according to clientProtocol
-        :param diffie: diffie helman object
-        :return: shared key as string
+        Exchange key with server
+        :return: if exchanged
         """
+        diffie = DiffiHelman(self.dh_p, self.dh_g)
         server_public_key = None
-        ret = None
+        shared_key = None
         try:
             raw = self._recv_exact(5)
             if raw:
@@ -117,16 +119,7 @@ class ClientComm:
             print(f"Error in receiving/sending public key: {e}")
         if server_public_key:
             shared_key = pow(server_public_key, diffie.private_key, diffie.p)
-            ret = str(shared_key)
-        return ret
-
-    def _exchange_key(self):
-        """
-        Exchange key with server
-        :return: if exchanged
-        """
-        diffie = DiffiHelman()
-        shared_key = self.client_exchange(diffie)
+            shared_key = str(shared_key)
         flag = False
         if shared_key:
             self.cipher = AESCipher(shared_key)

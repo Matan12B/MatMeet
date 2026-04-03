@@ -8,11 +8,13 @@ from Client.Logic.callLogic import CallLogic
 
 
 class Client:
-    def __init__(self, ip="127.0.0.1", port=1231):
+    def __init__(self, ip="127.0.0.1", port=1231, video_port=5000, audio_port=3000, dh_p=797, dh_g=100):
         self.server_ip = ip
         self.port = port
+        self.video_port = video_port
+        self.audio_port = audio_port
         self.msgsQ = queue.Queue()
-        self.comm = ClientComm(self.server_ip, self.port, self.msgsQ)
+        self.comm = ClientComm(self.server_ip, self.port, self.msgsQ, dh_p=dh_p, dh_g=dh_g)
         self.role = None
         self.username = ""
         self.password = ""
@@ -73,7 +75,9 @@ class Client:
                 meeting_key,
                 self.comm,
                 self.meeting_code,
-                self.username
+                self.username,
+                video_port=self.video_port,
+                audio_port=self.audio_port
             )
         elif role == "guest" and len(data) == 4:
             host_ip = data[3]
@@ -83,7 +87,9 @@ class Client:
                 self.comm,
                 host_ip,
                 self.meeting_code,
-                self.username
+                self.username,
+                video_port=self.video_port,
+                audio_port=self.audio_port
             )
         else:
             print("Invalid role")

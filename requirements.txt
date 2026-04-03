@@ -1,4 +1,3 @@
-# MatMeet dependencies
 # Install with: pip install -r requirements.txt
 
 # Video / image processing
@@ -14,5 +13,4 @@ wxPython>=4.2
 # System / network
 psutil>=5.9
 
-# Encryption  (imports as 'Crypto' — must be pycryptodome, NOT pycrypto)
 pycryptodome>=3.15

@@ -10,7 +10,8 @@ from Client.Logic.callParticipant import CallParticipant, get_fallback_ip
 
 
 class CallLogic(CallParticipant):
-    def __init__(self, port, meeting_key, comm, host_ip, meeting_code, username=""):
+    def __init__(self, port, meeting_key, comm, host_ip, meeting_code, username="",
+                 video_port=5000, audio_port=3000):
         """
         Initialize the guest participant: shared devices via parent, plus
         an AudioClient and ClientComm to communicate with the host.
@@ -21,6 +22,8 @@ class CallLogic(CallParticipant):
         :param host_ip: IP address of the host.
         :param meeting_code: The meeting room code.
         :param username: Guest's display name.
+        :param video_port: UDP port for video communication.
+        :param audio_port: TCP port for audio communication.
         """
         super().__init__(
             meeting_key=meeting_key,
@@ -28,13 +31,14 @@ class CallLogic(CallParticipant):
             meeting_code=meeting_code,
             username=username,
             fallback_target_ip=host_ip,
-            playout_delay=0.04
+            playout_delay=0.04,
+            video_port=video_port
         )
         self.msgs_from_host = queue.Queue()
         self.comm_with_host = ClientComm(host_ip, port, self.msgs_from_host, self.AES)
         self.host_ip = host_ip
         self.host_video_ip = None
-        self.audio_comm = AudioClient(host_ip, self.AES)
+        self.audio_comm = AudioClient(host_ip, self.AES, audio_port)
         # host is always known from the start
         self.open_clients[self.host_ip] = {"username": "Host"}
         self.send_queue = queue.Queue(maxsize=1)
@@ -49,7 +53,6 @@ class CallLogic(CallParticipant):
             "gh": self.get_host_username,
             "cc": self.get_connected_clients,
         }
-
     def _resolve_video_sender(self, addr):
         """
         Map the raw UDP sender IP to the canonical participant IP,

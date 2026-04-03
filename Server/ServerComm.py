@@ -5,10 +5,12 @@ import select
 from Common.Cipher import DiffiHelman, AESCipher
 
 class ServerComm:
-    def __init__(self, port, recvQ):
+    def __init__(self, port, recvQ, dh_p=797, dh_g=100):
         self.server_socket = socket.socket()
         self.port = port
         self.recvQ = recvQ
+        self.dh_p = dh_p
+        self.dh_g = dh_g
         # ip: [soc, AES]
         self.open_clients= {}
         # soc: ip
@@ -78,7 +80,7 @@ class ServerComm:
         :param client_soc: The client's socket.
         :param client_ip: The client's IP address.
         """
-        diffie = DiffiHelman()
+        diffie = DiffiHelman(self.dh_p, self.dh_g)
         shared_key = None
         client_public_key = None
         try:

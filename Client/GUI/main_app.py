@@ -1,14 +1,18 @@
-# main_app.py
-
 import wx
 from auth_frame import AuthFrame
 from Client.Logic.clientLogic import Client
+from Common.settings import load_settings
 
 
 class ZoomApp(wx.App):
     def OnInit(self):
-        ip = "10.0.0.14"
-        self.client = Client(ip, 3018)
+        try:
+            ip, port, video_port, audio_port, dh_p, dh_g = load_settings()
+        except (FileNotFoundError, ValueError) as e:
+            wx.MessageBox(str(e), "Settings Error", wx.OK | wx.ICON_ERROR)
+            return False
+
+        self.client = Client(ip, port, video_port, audio_port, dh_p, dh_g)
         self.client.start()
         frame = AuthFrame(self.client)
         frame.Show()
